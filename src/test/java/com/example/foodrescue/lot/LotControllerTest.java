@@ -1,18 +1,10 @@
-# Шаблон тесту контролера
-
-Копіюєш під свій контролер (див. §11 контракту), заміняєш `Lot` на свою сутність і підставляєш реальні поля запиту/відповіді. Мокаєш лише **свій** сервіс — чужий код для тесту не потрібен.
-
-Це точна копія робочого `LotControllerTest` (пакет `lot`) — перевір там, якщо потрібен приклад повністю заповнених тестових даних.
-
-**Увага, Spring Boot 4 / Jackson 3 змінили пакети порівняно зі звичними прикладами з інтернету:**
-- `ObjectMapper` тепер у `tools.jackson.databind`, а не `com.fasterxml.jackson.databind`
-- `@WebMvcTest` тепер у `org.springframework.boot.webmvc.test.autoconfigure`, а не `org.springframework.boot.test.autoconfigure.web.servlet`
-- `@MockitoBean` лишається в `org.springframework.test.context.bean.override.mockito` (це не змінилось)
-
-```java
 package com.example.foodrescue.lot;
 
 import com.example.foodrescue.common.error.ConflictException;
+import com.example.foodrescue.common.lot.FoodCategory;
+import com.example.foodrescue.common.lot.FoodLot;
+import com.example.foodrescue.common.lot.ItemUnit;
+import com.example.foodrescue.common.lot.StorageCondition;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -20,6 +12,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 
 import tools.jackson.databind.ObjectMapper;
@@ -43,40 +39,56 @@ class LotControllerTest {
     @MockitoBean
     private LotService lotService;
 
+    private LotRequest validRequest() {
+        Instant from = Instant.now().plus(2, ChronoUnit.HOURS);
+        Instant to = from.plus(2, ChronoUnit.HOURS);
+        return new LotRequest(
+                UUID.randomUUID(),
+                "Хліб і випічка",
+                FoodCategory.BAKERY,
+                List.of(new FoodItemRequest("Хліб", BigDecimal.valueOf(5), ItemUnit.KG, null)),
+                BigDecimal.valueOf(5),
+                StorageCondition.ROOM,
+                "вул. Хлібна, 1",
+                from,
+                to);
+    }
+
     // 1. Валідний запит → правильний статус і виклик сервісу
     @Test
     void validRequest_returnsCreated_andCallsService() throws Exception {
-        var request = new LotRequest(/* валідні поля */);
+        FoodLot lot = new FoodLot();
+        lot.setId(UUID.randomUUID());
+        given(lotService.create(any())).willReturn(lot);
 
         mockMvc.perform(post("/api/v1/lots")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(objectMapper.writeValueAsString(validRequest())))
                 .andExpect(status().isCreated());
 
         verify(lotService).create(any());
     }
 
-    // 2. Невалідне тіло → 400 з errors
+    // 2. Невалідне тіло → 400, у відповіді errors
     @Test
     void invalidBody_returnsBadRequestWithErrors() throws Exception {
-        var request = new LotRequest(/* поле, що порушує @NotBlank/@Size/... */);
+        LotRequest invalid = new LotRequest(
+                null, "Хл", null, List.of(), null, null, "", null, null);
 
         mockMvc.perform(post("/api/v1/lots")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(objectMapper.writeValueAsString(invalid)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors").exists());
     }
 
-    // 3. Сервіс кидає бізнес-виняток → правильний статус (403/404/409/422)
+    // 3. Сервіс кидає бізнес-виняток → правильний статус (409 при публікації)
     @Test
-    void serviceThrowsBusinessException_returnsMappedStatus() throws Exception {
-        var request = new LotRequest(/* валідні поля */);
-        given(lotService.create(any())).willThrow(new ConflictException("Лот у стані, що не дозволяє дію"));
+    void serviceThrowsConflict_onPublication_returnsConflictStatus() throws Exception {
+        UUID lotId = UUID.randomUUID();
+        given(lotService.publish(lotId)).willThrow(new ConflictException("Лот не в чернетці чи на модерації"));
 
-        mockMvc.perform(post("/api/v1/lots")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(post("/api/v1/lots/" + lotId + "/publication"))
                 .andExpect(status().isConflict());
     }
 
@@ -93,4 +105,3 @@ class LotControllerTest {
                 .andExpect(status().isBadRequest());
     }
 }
-```
