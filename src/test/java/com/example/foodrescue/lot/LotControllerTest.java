@@ -54,7 +54,7 @@ class LotControllerTest {
                 to);
     }
 
-    // 1. Валідний запит → правильний статус і виклик сервісу
+    // 1. Валідний запит -> правильний статус і виклик сервісу
     @Test
     void validRequest_returnsCreated_andCallsService() throws Exception {
         FoodLot lot = new FoodLot();
@@ -69,7 +69,7 @@ class LotControllerTest {
         verify(lotService).create(any());
     }
 
-    // 2. Невалідне тіло → 400, у відповіді errors
+    // 2. Невалідне тіло -> 400, у відповіді errors
     @Test
     void invalidBody_returnsBadRequestWithErrors() throws Exception {
         LotRequest invalid = new LotRequest(
@@ -82,7 +82,7 @@ class LotControllerTest {
                 .andExpect(jsonPath("$.errors").exists());
     }
 
-    // 3. Сервіс кидає бізнес-виняток → правильний статус (409 при публікації)
+    // 3. Сервіс кидає бізнес-виняток -> правильний статус (409 при публікації)
     @Test
     void serviceThrowsConflict_onPublication_returnsConflictStatus() throws Exception {
         UUID lotId = UUID.randomUUID();
@@ -92,7 +92,7 @@ class LotControllerTest {
                 .andExpect(status().isConflict());
     }
 
-    // 4. Невідоме поле в JSON → 400
+    // 4. Невідоме поле в JSON -> 400
     @Test
     void unknownJsonField_returnsBadRequest() throws Exception {
         String json = """
