@@ -1,6 +1,6 @@
 package com.example.foodrescue.volunteer;
 
-import com.example.foodrescue.common.error.ForbiddenActionException;
+import com.example.foodrescue.common.ForbiddenActionException;
 
 import java.util.UUID;
 

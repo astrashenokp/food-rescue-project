@@ -1,10 +1,10 @@
 package com.example.foodrescue.lot;
 
-import com.example.foodrescue.common.error.ConflictException;
-import com.example.foodrescue.common.lot.FoodCategory;
-import com.example.foodrescue.common.lot.FoodLot;
-import com.example.foodrescue.common.lot.ItemUnit;
-import com.example.foodrescue.common.lot.StorageCondition;
+import com.example.foodrescue.common.ConflictException;
+import com.example.foodrescue.common.FoodCategory;
+import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.common.ItemUnit;
+import com.example.foodrescue.common.StorageCondition;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;

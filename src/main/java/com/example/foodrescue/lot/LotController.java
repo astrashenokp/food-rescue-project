@@ -1,9 +1,9 @@
 package com.example.foodrescue.lot;
 
-import com.example.foodrescue.common.lot.FoodCategory;
-import com.example.foodrescue.common.lot.FoodLot;
-import com.example.foodrescue.common.lot.LotResponse;
-import com.example.foodrescue.common.lot.LotStatus;
+import com.example.foodrescue.common.FoodCategory;
+import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.common.LotResponse;
+import com.example.foodrescue.common.LotStatus;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

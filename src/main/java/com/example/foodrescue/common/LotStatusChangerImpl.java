@@ -1,22 +1,21 @@
-package com.example.foodrescue.common.lot;
+package com.example.foodrescue.common;
 
-import com.example.foodrescue.common.error.ConflictException;
-import com.example.foodrescue.common.history.StatusHistoryRecorder;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
-@Component
-public class LotStatusChanger {
+@Service
+public class LotStatusChangerImpl implements LotStatusChanger {
 
     private final StatusHistoryRecorder statusHistoryRecorder;
 
-    public LotStatusChanger(StatusHistoryRecorder statusHistoryRecorder) {
+    public LotStatusChangerImpl(StatusHistoryRecorder statusHistoryRecorder) {
         this.statusHistoryRecorder = statusHistoryRecorder;
     }
 
+    @Override
     public void transition(FoodLot lot, LotStatus next, String comment) {
         LotStatus current = lot.getStatus();
         if (!current.canTransitionTo(next)) {
-            throw new ConflictException(
+            throw new InvalidLotStateException(
                     "Лот " + lot.getId() + ": перехід " + current + " → " + next + " заборонено");
         }
         lot.setStatus(next);

@@ -1,12 +1,5 @@
-package com.example.foodrescue.common.demo;
+package com.example.foodrescue.common;
 
-import com.example.foodrescue.common.lot.FoodCategory;
-import com.example.foodrescue.common.lot.FoodItem;
-import com.example.foodrescue.common.lot.FoodLot;
-import com.example.foodrescue.common.lot.ItemUnit;
-import com.example.foodrescue.common.lot.LotStatus;
-import com.example.foodrescue.common.lot.LotStore;
-import com.example.foodrescue.common.lot.StorageCondition;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -28,20 +21,20 @@ public class DemoData implements CommandLineRunner {
     public static final UUID LOT_RESERVED = UUID.fromString("00000000-0000-0000-0000-0000000000a4");
     public static final UUID DEMO_VOLUNTEER = UUID.fromString("00000000-0000-0000-0000-00000000b1");
 
-    private final LotStore lotStore;
+    private final LotRepository lotRepository;
 
-    public DemoData(LotStore lotStore) {
-        this.lotStore = lotStore;
+    public DemoData(LotRepository lotRepository) {
+        this.lotRepository = lotRepository;
     }
 
     @Override
     public void run(String... args) {
         Instant now = Instant.now();
 
-        lotStore.save(draftLot(now));
-        lotStore.save(publishedLot(now));
-        lotStore.save(publishedBigLot(now));
-        lotStore.save(reservedLot(now));
+        lotRepository.save(draftLot(now));
+        lotRepository.save(publishedLot(now));
+        lotRepository.save(publishedBigLot(now));
+        lotRepository.save(reservedLot(now));
     }
 
     private FoodLot draftLot(Instant now) {

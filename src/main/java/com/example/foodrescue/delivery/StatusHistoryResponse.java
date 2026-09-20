@@ -1,6 +1,6 @@
 package com.example.foodrescue.delivery;
 
-import com.example.foodrescue.common.lot.LotStatus;
+import com.example.foodrescue.common.LotStatus;
 
 import java.time.Instant;
 

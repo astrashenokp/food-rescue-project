@@ -1,4 +1,4 @@
-package com.example.foodrescue.common.error;
+package com.example.foodrescue.common;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.Ordered;

@@ -1,6 +1,6 @@
 package com.example.foodrescue.volunteer;
 
-import com.example.foodrescue.common.error.NotFoundException;
+import com.example.foodrescue.common.NotFoundException;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;

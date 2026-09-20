@@ -1,11 +1,12 @@
 package com.example.foodrescue.lot;
 
-import com.example.foodrescue.common.lot.FoodCategory;
-import com.example.foodrescue.common.lot.FoodItem;
-import com.example.foodrescue.common.lot.FoodLot;
-import com.example.foodrescue.common.lot.LotStatus;
-import com.example.foodrescue.common.lot.LotStatusChanger;
-import com.example.foodrescue.common.lot.LotStore;
+import com.example.foodrescue.common.FoodCategory;
+import com.example.foodrescue.common.FoodItem;
+import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.common.LotNotFoundException;
+import com.example.foodrescue.common.LotRepository;
+import com.example.foodrescue.common.LotStatus;
+import com.example.foodrescue.common.LotStatusChanger;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -18,11 +19,11 @@ public class LotService {
     private static final int MIN_DONOR_LOTS_FOR_MODERATION_CHECK = 5;
     private static final int CANCELLATION_THRESHOLD_PERCENT = 20;
 
-    private final LotStore lotStore;
+    private final LotRepository lotRepository;
     private final LotStatusChanger statusChanger;
 
-    public LotService(LotStore lotStore, LotStatusChanger statusChanger) {
-        this.lotStore = lotStore;
+    public LotService(LotRepository lotRepository, LotStatusChanger statusChanger) {
+        this.lotRepository = lotRepository;
         this.statusChanger = statusChanger;
     }
 
@@ -32,11 +33,11 @@ public class LotService {
         applyRequest(lot, request);
         lot.setCreatedAt(Instant.now());
         lot.setStatus(LotStatus.DRAFT);
-        return lotStore.save(lot);
+        return lotRepository.save(lot);
     }
 
     public List<FoodLot> findAll(LotStatus status, FoodCategory category, UUID donorOrgId) {
-        return lotStore.findAll().stream()
+        return lotRepository.findAll().stream()
                 .filter(lot -> status == null || lot.getStatus() == status)
                 .filter(lot -> category == null || lot.getCategory() == category)
                 .filter(lot -> donorOrgId == null || donorOrgId.equals(lot.getDonorOrgId()))
@@ -44,20 +45,20 @@ public class LotService {
     }
 
     public FoodLot getById(UUID id) {
-        return lotStore.getById(id);
+        return lotRepository.findById(id).orElseThrow(() -> new LotNotFoundException(id));
     }
 
     public FoodLot update(UUID id, LotRequest request) {
-        FoodLot lot = lotStore.getById(id);
+        FoodLot lot = lotRepository.findById(id).orElseThrow(() -> new LotNotFoundException(id));
         if (lot.getStatus() != LotStatus.DRAFT) {
             throw new LotNotDraftException(id);
         }
         applyRequest(lot, request);
-        return lotStore.save(lot);
+        return lotRepository.save(lot);
     }
 
     public FoodLot publish(UUID id) {
-        FoodLot lot = lotStore.getById(id);
+        FoodLot lot = lotRepository.findById(id).orElseThrow(() -> new LotNotFoundException(id));
         LotStatus target = shouldSendToModeration(lot.getDonorOrgId())
                 ? LotStatus.PENDING_MODERATION
                 : LotStatus.PUBLISHED;
@@ -67,17 +68,17 @@ public class LotService {
         if (target == LotStatus.PUBLISHED) {
             lot.setPublishedAt(Instant.now());
         }
-        return lotStore.save(lot);
+        return lotRepository.save(lot);
     }
 
     public FoodLot cancel(UUID id) {
-        FoodLot lot = lotStore.getById(id);
+        FoodLot lot = lotRepository.findById(id).orElseThrow(() -> new LotNotFoundException(id));
         statusChanger.transition(lot, LotStatus.CANCELLED, "Скасовано донором");
-        return lotStore.save(lot);
+        return lotRepository.save(lot);
     }
 
     public FoodLot approve(UUID id, ApprovalRequest request) {
-        FoodLot lot = lotStore.getById(id);
+        FoodLot lot = lotRepository.findById(id).orElseThrow(() -> new LotNotFoundException(id));
         LotStatus target = Boolean.TRUE.equals(request.approved()) ? LotStatus.PUBLISHED : LotStatus.DRAFT;
         String comment = request.comment() != null ? request.comment() : "Рішення модератора";
 
@@ -86,7 +87,7 @@ public class LotService {
         if (target == LotStatus.PUBLISHED) {
             lot.setPublishedAt(Instant.now());
         }
-        return lotStore.save(lot);
+        return lotRepository.save(lot);
     }
 
     private void applyRequest(FoodLot lot, LotRequest request) {
@@ -106,7 +107,7 @@ public class LotService {
     }
 
     private boolean shouldSendToModeration(UUID donorOrgId) {
-        List<FoodLot> donorLots = lotStore.findAll().stream()
+        List<FoodLot> donorLots = lotRepository.findAll().stream()
                 .filter(lot -> donorOrgId.equals(lot.getDonorOrgId()))
                 .toList();
 

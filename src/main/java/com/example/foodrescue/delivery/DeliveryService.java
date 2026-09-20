@@ -1,13 +1,13 @@
 package com.example.foodrescue.delivery;
 
-import com.example.foodrescue.common.error.BusinessRuleException;
-import com.example.foodrescue.common.history.LotStatusHistory;
-import com.example.foodrescue.common.history.StatusHistoryRecorder;
-import com.example.foodrescue.common.lot.FoodLot;
-import com.example.foodrescue.common.lot.LotStatus;
-import com.example.foodrescue.common.lot.LotStatusChanger;
-import com.example.foodrescue.common.lot.LotStore;
-import com.example.foodrescue.volunteer.VolunteerStatsRecorder;
+import com.example.foodrescue.common.BusinessRuleException;
+import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.common.LotNotFoundException;
+import com.example.foodrescue.common.LotRepository;
+import com.example.foodrescue.common.LotStatus;
+import com.example.foodrescue.common.LotStatusChanger;
+import com.example.foodrescue.common.LotStatusHistory;
+import com.example.foodrescue.common.StatusHistoryRecorder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -21,26 +21,23 @@ public class DeliveryService {
 
     private static final BigDecimal MAX_WEIGHT_DIFFERENCE = new BigDecimal("0.10");
 
-    private final LotStore lotStore;
+    private final LotRepository lotRepository;
     private final LotStatusChanger statusChanger;
     private final StatusHistoryRecorder historyRecorder;
     private final DestinationPointStore destinationPointStore;
     private final DeliveryStore deliveryStore;
-    private final VolunteerStatsRecorder volunteerStatsRecorder;
 
     public DeliveryService(
-            LotStore lotStore,
+            LotRepository lotRepository,
             LotStatusChanger statusChanger,
             StatusHistoryRecorder historyRecorder,
             DestinationPointStore destinationPointStore,
-            DeliveryStore deliveryStore,
-            VolunteerStatsRecorder volunteerStatsRecorder) {
-        this.lotStore = lotStore;
+            DeliveryStore deliveryStore) {
+        this.lotRepository = lotRepository;
         this.statusChanger = statusChanger;
         this.historyRecorder = historyRecorder;
         this.destinationPointStore = destinationPointStore;
         this.deliveryStore = deliveryStore;
-        this.volunteerStatsRecorder = volunteerStatsRecorder;
     }
 
     public DestinationPoint createDestinationPoint(DestinationPointRequest request) {
@@ -59,7 +56,7 @@ public class DeliveryService {
     }
 
     public DeliveryResponse pickup(UUID lotId, PickupRequest request) {
-        FoodLot lot = lotStore.getById(lotId);
+        FoodLot lot = lotRepository.findById(lotId).orElseThrow(() -> new LotNotFoundException(lotId));
         Instant now = Instant.now();
         boolean late = lot.getReservedUntil() != null && now.isAfter(lot.getReservedUntil());
 
@@ -77,14 +74,13 @@ public class DeliveryService {
                 null);
 
         deliveryStore.save(delivery);
-        lotStore.save(lot);
-        volunteerStatsRecorder.recordPickup(delivery.volunteerId(), late);
+        lotRepository.save(lot);
 
         return toResponse(delivery, lot.getStatus());
     }
 
     public DeliveryResponse deliver(UUID lotId, DeliveryRequest request) {
-        FoodLot lot = lotStore.getById(lotId);
+        FoodLot lot = lotRepository.findById(lotId).orElseThrow(() -> new LotNotFoundException(lotId));
         DestinationPoint point = destinationPointStore.getById(request.destinationPointId());
 
         if (!point.acceptedCategories().contains(lot.getCategory())) {
@@ -106,12 +102,12 @@ public class DeliveryService {
                 null);
 
         deliveryStore.save(updated);
-        lotStore.save(lot);
+        lotRepository.save(lot);
         return toResponse(updated, lot.getStatus());
     }
 
     public DeliveryResponse confirm(UUID lotId, ConfirmationRequest request) {
-        FoodLot lot = lotStore.getById(lotId);
+        FoodLot lot = lotRepository.findById(lotId).orElseThrow(() -> new LotNotFoundException(lotId));
         Delivery current = deliveryStore.getByLotId(lotId);
 
         if (!request.confirmationCode().equals(current.confirmationCode())) throw new BusinessRuleException("Неправильний код підтвердження");
@@ -139,19 +135,13 @@ public class DeliveryService {
                 request.receivedWeightKg());
 
         deliveryStore.save(updated);
-        lotStore.save(lot);
-
-        if (nextStatus == LotStatus.DISPUTED) {
-            volunteerStatsRecorder.recordStrike(updated.volunteerId());
-        } else {
-            volunteerStatsRecorder.recordCompletedDelivery(updated.volunteerId());
-        }
+        lotRepository.save(lot);
 
         return toResponse(updated, lot.getStatus());
     }
 
     public List<StatusHistoryResponse> getHistory(UUID lotId) {
-        lotStore.getById(lotId);
+        lotRepository.findById(lotId).orElseThrow(() -> new LotNotFoundException(lotId));
         return historyRecorder.findByLot(lotId).stream()
                 .map(this::toHistoryResponse)
                 .toList();

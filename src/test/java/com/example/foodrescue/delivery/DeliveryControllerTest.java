@@ -1,7 +1,7 @@
 package com.example.foodrescue.delivery;
 
-import com.example.foodrescue.common.error.BusinessRuleException;
-import com.example.foodrescue.common.lot.FoodCategory;
+import com.example.foodrescue.common.BusinessRuleException;
+import com.example.foodrescue.common.FoodCategory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;

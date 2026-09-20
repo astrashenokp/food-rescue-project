@@ -1,6 +1,6 @@
 package com.example.foodrescue.delivery;
 
-import com.example.foodrescue.common.lot.FoodCategory;
+import com.example.foodrescue.common.FoodCategory;
 
 import java.util.Set;
 import java.util.UUID;

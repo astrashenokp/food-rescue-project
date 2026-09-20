@@ -1,6 +1,6 @@
 package com.example.foodrescue.volunteer;
 
-import com.example.foodrescue.common.error.ConflictException;
+import com.example.foodrescue.common.ConflictException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
