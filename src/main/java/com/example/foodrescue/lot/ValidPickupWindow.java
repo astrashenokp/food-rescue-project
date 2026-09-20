@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidPickupWindow {
 
-    String message() default "Вікно самовивозу має бути щонайменше 45 хв, а pickupTo — пізніше за pickupFrom";
+    String message() default "pickupTo має бути пізніше за pickupFrom";
 
     Class<?>[] groups() default {};
 
