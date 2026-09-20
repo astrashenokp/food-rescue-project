@@ -1,12 +1,5 @@
-package com.example.foodrescue.common.demo;
+package com.example.foodrescue.common;
 
-import com.example.foodrescue.common.lot.FoodCategory;
-import com.example.foodrescue.common.lot.FoodItem;
-import com.example.foodrescue.common.lot.FoodLot;
-import com.example.foodrescue.common.lot.ItemUnit;
-import com.example.foodrescue.common.lot.LotStatus;
-import com.example.foodrescue.common.lot.LotStore;
-import com.example.foodrescue.common.lot.StorageCondition;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 

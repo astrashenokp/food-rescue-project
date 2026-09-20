@@ -1,7 +1,5 @@
-package com.example.foodrescue.common.lot;
+package com.example.foodrescue.common;
 
-import com.example.foodrescue.common.error.ConflictException;
-import com.example.foodrescue.common.history.StatusHistoryRecorder;
 import org.springframework.stereotype.Component;
 
 @Component

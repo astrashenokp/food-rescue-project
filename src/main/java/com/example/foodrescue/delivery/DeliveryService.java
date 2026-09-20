@@ -1,12 +1,12 @@
 package com.example.foodrescue.delivery;
 
-import com.example.foodrescue.common.error.BusinessRuleException;
-import com.example.foodrescue.common.history.LotStatusHistory;
-import com.example.foodrescue.common.history.StatusHistoryRecorder;
-import com.example.foodrescue.common.lot.FoodLot;
-import com.example.foodrescue.common.lot.LotStatus;
-import com.example.foodrescue.common.lot.LotStatusChanger;
-import com.example.foodrescue.common.lot.LotStore;
+import com.example.foodrescue.common.BusinessRuleException;
+import com.example.foodrescue.common.LotStatusHistory;
+import com.example.foodrescue.common.StatusHistoryRecorder;
+import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.common.LotStatus;
+import com.example.foodrescue.common.LotStatusChanger;
+import com.example.foodrescue.common.LotStore;
 import com.example.foodrescue.volunteer.VolunteerStatsRecorder;
 import org.springframework.stereotype.Service;
 

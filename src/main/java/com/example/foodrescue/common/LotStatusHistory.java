@@ -1,6 +1,4 @@
-package com.example.foodrescue.common.history;
-
-import com.example.foodrescue.common.lot.LotStatus;
+package com.example.foodrescue.common;
 
 import java.time.Instant;
 import java.util.UUID;

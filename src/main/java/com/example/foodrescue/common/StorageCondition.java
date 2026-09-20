@@ -1,4 +1,4 @@
-package com.example.foodrescue.common.lot;
+package com.example.foodrescue.common;
 
 public enum StorageCondition {
     ROOM, CHILLED, FROZEN

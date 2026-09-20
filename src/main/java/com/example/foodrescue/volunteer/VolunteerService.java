@@ -1,11 +1,11 @@
 package com.example.foodrescue.volunteer;
 
-import com.example.foodrescue.common.error.ForbiddenActionException;
-import com.example.foodrescue.common.lot.FoodCategory;
-import com.example.foodrescue.common.lot.FoodLot;
-import com.example.foodrescue.common.lot.LotStatus;
-import com.example.foodrescue.common.lot.LotStatusChanger;
-import com.example.foodrescue.common.lot.LotStore;
+import com.example.foodrescue.common.ForbiddenActionException;
+import com.example.foodrescue.common.FoodCategory;
+import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.common.LotStatus;
+import com.example.foodrescue.common.LotStatusChanger;
+import com.example.foodrescue.common.LotStore;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;

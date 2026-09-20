@@ -1,6 +1,6 @@
 package com.example.foodrescue.volunteer;
 
-import com.example.foodrescue.common.demo.DemoData;
+import com.example.foodrescue.common.DemoData;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;

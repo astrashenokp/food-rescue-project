@@ -1,6 +1,6 @@
 package com.example.foodrescue.lot;
 
-import com.example.foodrescue.common.lot.ItemUnit;
+import com.example.foodrescue.common.ItemUnit;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

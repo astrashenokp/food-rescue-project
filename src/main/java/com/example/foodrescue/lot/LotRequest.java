@@ -1,7 +1,7 @@
 package com.example.foodrescue.lot;
 
-import com.example.foodrescue.common.lot.FoodCategory;
-import com.example.foodrescue.common.lot.StorageCondition;
+import com.example.foodrescue.common.FoodCategory;
+import com.example.foodrescue.common.StorageCondition;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Future;

@@ -1,6 +1,6 @@
 package com.example.foodrescue.lot;
 
-import com.example.foodrescue.common.error.ConflictException;
+import com.example.foodrescue.common.ConflictException;
 
 import java.util.UUID;
 

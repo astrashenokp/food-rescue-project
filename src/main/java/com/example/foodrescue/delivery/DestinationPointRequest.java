@@ -1,6 +1,6 @@
 package com.example.foodrescue.delivery;
 
-import com.example.foodrescue.common.lot.FoodCategory;
+import com.example.foodrescue.common.FoodCategory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;

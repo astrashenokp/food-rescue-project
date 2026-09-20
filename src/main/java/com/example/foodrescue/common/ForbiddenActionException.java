@@ -1,4 +1,4 @@
-package com.example.foodrescue.common.error;
+package com.example.foodrescue.common;
 
 import org.springframework.http.HttpStatus;
 

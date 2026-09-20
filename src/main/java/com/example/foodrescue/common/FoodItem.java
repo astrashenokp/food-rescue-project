@@ -1,4 +1,4 @@
-package com.example.foodrescue.common.lot;
+package com.example.foodrescue.common;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
