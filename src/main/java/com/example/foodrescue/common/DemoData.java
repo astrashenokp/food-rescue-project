@@ -21,20 +21,20 @@ public class DemoData implements CommandLineRunner {
     public static final UUID LOT_RESERVED = UUID.fromString("00000000-0000-0000-0000-0000000000a4");
     public static final UUID DEMO_VOLUNTEER = UUID.fromString("00000000-0000-0000-0000-00000000b1");
 
-    private final LotStore lotStore;
+    private final LotRepository lotRepository;
 
-    public DemoData(LotStore lotStore) {
-        this.lotStore = lotStore;
+    public DemoData(LotRepository lotRepository) {
+        this.lotRepository = lotRepository;
     }
 
     @Override
     public void run(String... args) {
         Instant now = Instant.now();
 
-        lotStore.save(draftLot(now));
-        lotStore.save(publishedLot(now));
-        lotStore.save(publishedBigLot(now));
-        lotStore.save(reservedLot(now));
+        lotRepository.save(draftLot(now));
+        lotRepository.save(publishedLot(now));
+        lotRepository.save(publishedBigLot(now));
+        lotRepository.save(reservedLot(now));
     }
 
     private FoodLot draftLot(Instant now) {

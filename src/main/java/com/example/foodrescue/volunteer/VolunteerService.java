@@ -1,11 +1,12 @@
 package com.example.foodrescue.volunteer;
 
-import com.example.foodrescue.common.ForbiddenActionException;
 import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.common.ForbiddenActionException;
+import com.example.foodrescue.common.LotNotFoundException;
+import com.example.foodrescue.common.LotRepository;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.LotStatusChanger;
-import com.example.foodrescue.common.LotStore;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -22,12 +23,12 @@ public class VolunteerService {
     private static final int RESERVE_DURATION_MINUTES = 30;
 
     private final VolunteerStore volunteerStore;
-    private final LotStore lotStore;
+    private final LotRepository lotRepository;
     private final LotStatusChanger statusChanger;
 
-    public VolunteerService(VolunteerStore volunteerStore, LotStore lotStore, LotStatusChanger statusChanger) {
+    public VolunteerService(VolunteerStore volunteerStore, LotRepository lotRepository, LotStatusChanger statusChanger) {
         this.volunteerStore = volunteerStore;
-        this.lotStore = lotStore;
+        this.lotRepository = lotRepository;
         this.statusChanger = statusChanger;
     }
 
@@ -51,7 +52,7 @@ public class VolunteerService {
      * synchronized — щоб два волонтери не взяли один лот одночасно.
      */
     public synchronized FoodLot reserve(UUID lotId, ReservationRequest request) {
-        FoodLot lot = lotStore.getById(lotId);
+        FoodLot lot = lotRepository.findById(lotId).orElseThrow(() -> new LotNotFoundException(lotId));
         VolunteerProfile volunteer = volunteerStore.getById(request.volunteerId());
 
         // Обмежений волонтер — лише BAKERY і GROCERY
@@ -75,7 +76,7 @@ public class VolunteerService {
 
         lot.setReservedByVolunteerId(request.volunteerId());
         lot.setReservedUntil(Instant.now().plus(RESERVE_DURATION_MINUTES, ChronoUnit.MINUTES));
-        lotStore.save(lot);
+        lotRepository.save(lot);
 
         return lot;
     }
@@ -84,14 +85,14 @@ public class VolunteerService {
      * Скасування резервування: RESERVED → PUBLISHED, очищення полів резерву.
      */
     public FoodLot cancelReservation(UUID lotId) {
-        FoodLot lot = lotStore.getById(lotId);
+        FoodLot lot = lotRepository.findById(lotId).orElseThrow(() -> new LotNotFoundException(lotId));
 
         // Перехід RESERVED → PUBLISHED (409, якщо не RESERVED)
         statusChanger.transition(lot, LotStatus.PUBLISHED, "Резерв скасовано");
 
         lot.setReservedByVolunteerId(null);
         lot.setReservedUntil(null);
-        lotStore.save(lot);
+        lotRepository.save(lot);
 
         return lot;
     }
