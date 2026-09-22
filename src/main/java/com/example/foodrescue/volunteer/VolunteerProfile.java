@@ -98,6 +98,19 @@ public class VolunteerProfile {
     }
 
     /**
+     * Рівень волонтера за відповідальністю.
+     */
+    public VolunteerTier getTier() {
+        if (isRestricted()) {
+            return VolunteerTier.RESTRICTED;
+        }
+        if (getResponsibilityScore() > 90) {
+            return VolunteerTier.TRUSTED;
+        }
+        return VolunteerTier.STANDARD;
+    }
+
+    /**
      * Обмежений волонтер: понад 3 зриви АБО понад 15% запізнень.
      * Може брати лише BAKERY і GROCERY.
      */

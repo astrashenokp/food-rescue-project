@@ -85,11 +85,14 @@ HTTP-статуси помилок: **404** — не знайдено, **409** �
 
 ### 5.2. БК-2: волонтери та резервування (модуль `volunteer`)
 
-_Розділ заповнює Людина 2._
-
 | # | Правило | Виняток | HTTP |
 |---|---------|---------|------|
-|   |         |         |      |
+| 2.1 | Волонтера з вказаним `volunteerId` не знайдено | `VolunteerNotFoundException` | 404 |
+| 2.2 | Резервування дозволене лише для лота у стані `PUBLISHED`. У разі успіху виставляються `reservedByVolunteerId` та `reservedUntil = now + 30 хв` | `InvalidLotStateException` | 422 |
+| 2.3 | Обмежений волонтер (`RESTRICTED`) має доступ лише до категорій `BAKERY` та `GROCERY` (стратегія `ReservationAccessStrategy`) | `ReservationDeniedException` | 403 |
+| 2.4 | Великий лот (≥ 20 кг) перші 10 хвилин з моменту публікації доступний тільки волонтерам рівнів `TRUSTED` | `ReservationDeniedException` | 403 |
+| 2.5 | Скасування резервації дозволене лише для лота у стані `RESERVED`. Лот повертається в `PUBLISHED`, а поля резервації очищуються | `InvalidLotStateException` | 422 |
+| | Лот не існує при спробі резервування | `LotNotFoundException` | 404 |
 
 ### 5.3. БК-3: передача, доставка, підтвердження (модуль `delivery`)
 
@@ -106,7 +109,7 @@ _Розділ заповнює Людина 3._
 | Стратегія | Модуль | Ключ | Значення за реалізаціями |
 |-----------|--------|------|--------------------------|
 | `PickupWindowStrategy` | `lot` | категорія | `PREPARED_MEAL` 45 хв, `BAKERY` 60 хв, `VEGETABLES` 90 хв, `GROCERY` 120 хв (мінімальне вікно самовивозу) |
-| `ReservationAccessStrategy` | `volunteer` | рівень волонтера | _заповнює Людина 2_ |
+| `ReservationAccessStrategy` | `volunteer` | рівень волонтера (`VolunteerTier`) | `TRUSTED` (без обмежень), `STANDARD` (блокування лотів ≥ 20 кг у перші 10 хв публікації), `RESTRICTED` (лише `BAKERY`/`GROCERY` + блокування великих лотів у перші 10 хв) |
 | `WeightToleranceStrategy` | `delivery` | категорія | _заповнює Людина 3_ |
 
 ## 7. Події
@@ -125,4 +128,4 @@ _Розділ заповнює Людина 3._
 |------|-----|-----------|
 | Видавець | `delivery` | _заповнює Людина 3_ |
 | Слухач | `lot` | `DonorStatsListener` асинхронно приймає подію і викликає `DonorStatsService.recordOutcome`: для `CONFIRMED` збільшує `confirmedLots` донора, для `DISPUTED` збільшує `disputedLots` |
-| Слухач | `volunteer` | _заповнює Людина 2_ |
+| Слухач | `volunteer` | `VolunteerStatsListener` асинхронно приймає подію (`@ApplicationModuleListener`) та викликає `VolunteerService.recordOutcome`: для `CONFIRMED` збільшує `completedDeliveries`, для `DISPUTED` збільшує `noShows`, при `latePickup = true` збільшує `latePickups` |

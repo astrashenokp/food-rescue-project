@@ -1,108 +1,19 @@
 package com.example.foodrescue.volunteer;
 
-import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.common.FoodLot;
-import com.example.foodrescue.common.ForbiddenActionException;
-import com.example.foodrescue.common.LotNotFoundException;
-import com.example.foodrescue.common.LotRepository;
-import com.example.foodrescue.common.LotStatus;
-import com.example.foodrescue.common.LotStatusChanger;
-import org.springframework.stereotype.Service;
+import com.example.foodrescue.delivery.DeliveryOutcome;
 
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
-@Service
-public class VolunteerService {
+public interface VolunteerService {
 
-    private static final BigDecimal BIG_LOT_THRESHOLD_KG = BigDecimal.valueOf(20);
-    private static final int EARLY_ACCESS_MINUTES = 10;
-    private static final int EARLY_ACCESS_MIN_SCORE = 90;
-    private static final int RESERVE_DURATION_MINUTES = 30;
+    VolunteerProfile create(VolunteerRequest request);
 
-    private final VolunteerStore volunteerStore;
-    private final LotRepository lotRepository;
-    private final LotStatusChanger statusChanger;
+    VolunteerProfile getById(UUID id);
 
-    public VolunteerService(VolunteerStore volunteerStore, LotRepository lotRepository, LotStatusChanger statusChanger) {
-        this.volunteerStore = volunteerStore;
-        this.lotRepository = lotRepository;
-        this.statusChanger = statusChanger;
-    }
+    FoodLot reserve(UUID lotId, ReservationRequest request);
 
-    public VolunteerProfile create(VolunteerRequest request) {
-        VolunteerProfile profile = new VolunteerProfile();
-        profile.setId(UUID.randomUUID());
-        profile.setFullName(request.fullName());
-        profile.setEmail(request.email());
-        profile.setPhone(request.phone());
-        profile.setTransportType(request.transportType());
-        profile.setActivityZone(request.activityZone());
-        return volunteerStore.save(profile);
-    }
+    FoodLot cancelReservation(UUID lotId);
 
-    public VolunteerProfile getById(UUID id) {
-        return volunteerStore.getById(id);
-    }
-
-    /**
-     * Резервування лоту за волонтером.
-     * synchronized — щоб два волонтери не взяли один лот одночасно.
-     */
-    public synchronized FoodLot reserve(UUID lotId, ReservationRequest request) {
-        FoodLot lot = lotRepository.findById(lotId).orElseThrow(() -> new LotNotFoundException(lotId));
-        VolunteerProfile volunteer = volunteerStore.getById(request.volunteerId());
-
-        // Обмежений волонтер — лише BAKERY і GROCERY
-        if (volunteer.isRestricted()) {
-            FoodCategory category = lot.getCategory();
-            if (category != FoodCategory.BAKERY && category != FoodCategory.GROCERY) {
-                throw new VolunteerRestrictedException(volunteer.getId());
-            }
-        }
-
-        // Великий лот: перші 10 хв після публікації — лише для волонтерів із показником понад 90
-        if (isBigLot(lot) && isWithinEarlyAccessWindow(lot)
-                && volunteer.getResponsibilityScore() <= EARLY_ACCESS_MIN_SCORE) {
-            throw new ForbiddenActionException(
-                    "Великий лот у перші " + EARLY_ACCESS_MINUTES
-                            + " хв доступний лише волонтерам з показником понад " + EARLY_ACCESS_MIN_SCORE);
-        }
-
-        // Перехід PUBLISHED → RESERVED (409, якщо не PUBLISHED)
-        statusChanger.transition(lot, LotStatus.RESERVED, "Зарезервовано");
-
-        lot.setReservedByVolunteerId(request.volunteerId());
-        lot.setReservedUntil(Instant.now().plus(RESERVE_DURATION_MINUTES, ChronoUnit.MINUTES));
-        lotRepository.save(lot);
-
-        return lot;
-    }
-
-    /**
-     * Скасування резервування: RESERVED → PUBLISHED, очищення полів резерву.
-     */
-    public FoodLot cancelReservation(UUID lotId) {
-        FoodLot lot = lotRepository.findById(lotId).orElseThrow(() -> new LotNotFoundException(lotId));
-
-        // Перехід RESERVED → PUBLISHED (409, якщо не RESERVED)
-        statusChanger.transition(lot, LotStatus.PUBLISHED, "Резерв скасовано");
-
-        lot.setReservedByVolunteerId(null);
-        lot.setReservedUntil(null);
-        lotRepository.save(lot);
-
-        return lot;
-    }
-
-    private boolean isBigLot(FoodLot lot) {
-        return lot.getTotalWeightKg().compareTo(BIG_LOT_THRESHOLD_KG) >= 0;
-    }
-
-    private boolean isWithinEarlyAccessWindow(FoodLot lot) {
-        return lot.getPublishedAt() != null
-                && Instant.now().isBefore(lot.getPublishedAt().plus(EARLY_ACCESS_MINUTES, ChronoUnit.MINUTES));
-    }
+    void recordOutcome(UUID volunteerId, DeliveryOutcome outcome, boolean latePickup);
 }
