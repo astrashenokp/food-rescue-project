@@ -1,181 +1,19 @@
 package com.example.foodrescue.delivery;
 
-import com.example.foodrescue.common.BusinessRuleException;
-import com.example.foodrescue.common.FoodLot;
-import com.example.foodrescue.common.LotNotFoundException;
-import com.example.foodrescue.common.LotRepository;
-import com.example.foodrescue.common.LotStatus;
-import com.example.foodrescue.common.LotStatusChanger;
-import com.example.foodrescue.common.LotStatusHistory;
-import com.example.foodrescue.common.StatusHistoryRecorder;
-import org.springframework.stereotype.Service;
-
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 
-@Service
-public class DeliveryService {
+public interface DeliveryService {
 
-    private static final BigDecimal MAX_WEIGHT_DIFFERENCE = new BigDecimal("0.10");
+    DestinationPoint createDestinationPoint(DestinationPointRequest request);
 
-    private final LotRepository lotRepository;
-    private final LotStatusChanger statusChanger;
-    private final StatusHistoryRecorder historyRecorder;
-    private final DestinationPointStore destinationPointStore;
-    private final DeliveryStore deliveryStore;
+    DestinationPoint getDestinationPoint(UUID id);
 
-    public DeliveryService(
-            LotRepository lotRepository,
-            LotStatusChanger statusChanger,
-            StatusHistoryRecorder historyRecorder,
-            DestinationPointStore destinationPointStore,
-            DeliveryStore deliveryStore) {
-        this.lotRepository = lotRepository;
-        this.statusChanger = statusChanger;
-        this.historyRecorder = historyRecorder;
-        this.destinationPointStore = destinationPointStore;
-        this.deliveryStore = deliveryStore;
-    }
+    DeliveryResponse pickup(UUID lotId, PickupRequest request);
 
-    public DestinationPoint createDestinationPoint(DestinationPointRequest request) {
-        DestinationPoint point = new DestinationPoint(
-                UUID.randomUUID(),
-                request.organizationId(),
-                request.name(),
-                request.address(),
-                request.workingHours(),
-                request.acceptedCategories());
-        return destinationPointStore.save(point);
-    }
+    DeliveryResponse deliver(UUID lotId, DeliveryRequest request);
 
-    public DestinationPoint getDestinationPoint(UUID id) {
-        return destinationPointStore.getById(id);
-    }
+    DeliveryResponse confirm(UUID lotId, ConfirmationRequest request);
 
-    public DeliveryResponse pickup(UUID lotId, PickupRequest request) {
-        FoodLot lot = lotRepository.findById(lotId).orElseThrow(() -> new LotNotFoundException(lotId));
-        Instant now = Instant.now();
-        boolean late = lot.getReservedUntil() != null && now.isAfter(lot.getReservedUntil());
-
-        statusChanger.transition(lot, LotStatus.PICKED_UP, "Лот передано волонтеру");
-
-        Delivery delivery = new Delivery(
-                lotId,
-                lot.getReservedByVolunteerId(),
-                null,
-                now,
-                request.actualWeightKg(),
-                null,
-                null,
-                null,
-                null);
-
-        deliveryStore.save(delivery);
-        lotRepository.save(lot);
-
-        return toResponse(delivery, lot.getStatus());
-    }
-
-    public DeliveryResponse deliver(UUID lotId, DeliveryRequest request) {
-        FoodLot lot = lotRepository.findById(lotId).orElseThrow(() -> new LotNotFoundException(lotId));
-        DestinationPoint point = destinationPointStore.getById(request.destinationPointId());
-
-        if (!point.acceptedCategories().contains(lot.getCategory())) {
-            throw new BusinessRuleException("Пункт призначення не приймає категорію лоту");
-        }
-
-        Delivery current = deliveryStore.getByLotId(lotId);
-        statusChanger.transition(lot, LotStatus.DELIVERED, "Доставлено до пункту призначення");
-
-        Delivery updated = new Delivery(
-                current.lotId(),
-                current.volunteerId(),
-                point.id(),
-                current.pickedUpAt(),
-                current.pickupWeightKg(),
-                Instant.now(),
-                generateConfirmationCode(),
-                null,
-                null);
-
-        deliveryStore.save(updated);
-        lotRepository.save(lot);
-        return toResponse(updated, lot.getStatus());
-    }
-
-    public DeliveryResponse confirm(UUID lotId, ConfirmationRequest request) {
-        FoodLot lot = lotRepository.findById(lotId).orElseThrow(() -> new LotNotFoundException(lotId));
-        Delivery current = deliveryStore.getByLotId(lotId);
-
-        if (!request.confirmationCode().equals(current.confirmationCode())) throw new BusinessRuleException("Неправильний код підтвердження");
-
-        LotStatus nextStatus = hasWeightDifference(current.pickupWeightKg(), request.receivedWeightKg())
-                ? LotStatus.DISPUTED
-                : LotStatus.CONFIRMED;
-
-        statusChanger.transition(
-                lot,
-                nextStatus,
-                nextStatus == LotStatus.CONFIRMED
-                        ? "Отримання підтверджено"
-                        : "Виявлено розбіжність у вазі");
-
-        Delivery updated = new Delivery(
-                current.lotId(),
-                current.volunteerId(),
-                current.destinationPointId(),
-                current.pickedUpAt(),
-                current.pickupWeightKg(),
-                current.deliveredAt(),
-                current.confirmationCode(),
-                Instant.now(),
-                request.receivedWeightKg());
-
-        deliveryStore.save(updated);
-        lotRepository.save(lot);
-
-        return toResponse(updated, lot.getStatus());
-    }
-
-    public List<StatusHistoryResponse> getHistory(UUID lotId) {
-        lotRepository.findById(lotId).orElseThrow(() -> new LotNotFoundException(lotId));
-        return historyRecorder.findByLot(lotId).stream()
-                .map(this::toHistoryResponse)
-                .toList();
-    }
-
-    private DeliveryResponse toResponse(Delivery delivery, LotStatus status) {
-        return new DeliveryResponse(
-                delivery.lotId(),
-                delivery.volunteerId(),
-                delivery.destinationPointId(),
-                status,
-                delivery.pickedUpAt(),
-                delivery.pickupWeightKg(),
-                delivery.deliveredAt(),
-                delivery.confirmationCode(),
-                delivery.confirmedAt(),
-                delivery.receivedWeightKg());
-    }
-
-    private StatusHistoryResponse toHistoryResponse(LotStatusHistory history) {
-        return new StatusHistoryResponse(
-                history.fromStatus(),
-                history.toStatus(),
-                history.changedAt(),
-                history.comment());
-    }
-
-    private boolean hasWeightDifference(BigDecimal pickupWeight, BigDecimal receivedWeight) {
-        BigDecimal difference = receivedWeight.subtract(pickupWeight).abs();
-        BigDecimal limit = pickupWeight.multiply(MAX_WEIGHT_DIFFERENCE);
-        return difference.compareTo(limit) > 0;
-    }
-
-    private String generateConfirmationCode() {
-        return "%06d".formatted(ThreadLocalRandom.current().nextInt(1_000_000));
-    }
+    List<StatusHistoryResponse> getHistory(UUID lotId);
 }

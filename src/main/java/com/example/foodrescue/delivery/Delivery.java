@@ -10,6 +10,7 @@ public record Delivery(
         UUID destinationPointId,
         Instant pickedUpAt,
         BigDecimal pickupWeightKg,
+        boolean latePickup,
         Instant deliveredAt,
         String confirmationCode,
         Instant confirmedAt,
