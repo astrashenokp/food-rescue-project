@@ -96,11 +96,14 @@ HTTP-статуси помилок: **404** — не знайдено, **409** �
 
 ### 5.3. БК-3: передача, доставка, підтвердження (модуль `delivery`)
 
-_Розділ заповнює Людина 3._
-
 | # | Правило | Виняток | HTTP |
 |---|---------|---------|------|
-|   |         |         |      |
+| 3.1 | `pickup`: перехід `RESERVED` → `PICKED_UP`; ознака `latePickup` фіксується, якщо поточний час пізніше `reservedUntil` | `InvalidLotStateException` | 422 |
+| 3.2 | `deliver`: перехід `PICKED_UP` → `DELIVERED`; пункт призначення має приймати категорію лоту; після успіху генерується 6-значний код підтвердження | `InvalidLotStateException`, `CategoryNotAcceptedException` | 422 |
+| 3.3 | `confirm`: код має збігатися; якщо відхилення ваги перевищує допуск стратегії — `DISPUTED`, інакше `CONFIRMED`; після збереження публікується `DeliveryFinishedEvent` | `InvalidLotStateException`, `InvalidConfirmationCodeException` | 422 |
+| 3.4 | Назва пункту призначення має бути унікальною | `DuplicateDestinationPointException` | 409 |
+| | Пункт призначення не існує | `DestinationPointNotFoundException` | 404 |
+| | Запис доставки для лоту не існує | `DeliveryNotFoundException` | 404 |
 
 ## 6. Стратегії
 
@@ -110,7 +113,7 @@ _Розділ заповнює Людина 3._
 |-----------|--------|------|--------------------------|
 | `PickupWindowStrategy` | `lot` | категорія | `PREPARED_MEAL` 45 хв, `BAKERY` 60 хв, `VEGETABLES` 90 хв, `GROCERY` 120 хв (мінімальне вікно самовивозу) |
 | `ReservationAccessStrategy` | `volunteer` | рівень волонтера (`VolunteerTier`) | `TRUSTED` (без обмежень), `STANDARD` (блокування лотів ≥ 20 кг у перші 10 хв публікації), `RESTRICTED` (лише `BAKERY`/`GROCERY` + блокування великих лотів у перші 10 хв) |
-| `WeightToleranceStrategy` | `delivery` | категорія | _заповнює Людина 3_ |
+| `WeightToleranceStrategy` | `delivery` | категорія | `PREPARED_MEAL` 10%, `BAKERY` 10%, `VEGETABLES` 15%, `GROCERY` 5% (максимальне допустиме відхилення ваги) |
 
 ## 7. Події
 
@@ -126,6 +129,6 @@ _Розділ заповнює Людина 3._
 
 | Роль | Хто | Що робить |
 |------|-----|-----------|
-| Видавець | `delivery` | _заповнює Людина 3_ |
+| Видавець | `DeliveryService.confirm` | Після успішного збереження лоту й доставки публікує `DeliveryFinishedEvent` через `ApplicationEventPublisher`; метод `confirm` є транзакційним |
 | Слухач | `lot` | `DonorStatsListener` асинхронно приймає подію і викликає `DonorStatsService.recordOutcome`: для `CONFIRMED` збільшує `confirmedLots` донора, для `DISPUTED` збільшує `disputedLots` |
 | Слухач | `volunteer` | `VolunteerStatsListener` асинхронно приймає подію (`@ApplicationModuleListener`) та викликає `VolunteerService.recordOutcome`: для `CONFIRMED` збільшує `completedDeliveries`, для `DISPUTED` збільшує `noShows`, при `latePickup = true` збільшує `latePickups` |
