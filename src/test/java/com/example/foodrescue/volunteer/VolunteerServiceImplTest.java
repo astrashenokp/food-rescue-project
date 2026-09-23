@@ -107,6 +107,7 @@ class VolunteerServiceImplTest {
 
     @Test
     void create_validRequest_savesProfile() {
+        given(volunteerRepository.existsByEmail("new@example.com")).willReturn(false);
         given(volunteerRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
         VolunteerRequest request = new VolunteerRequest(
@@ -116,7 +117,23 @@ class VolunteerServiceImplTest {
         assertNotNull(created.getId());
         assertEquals("Новий Волонтер", created.getFullName());
         assertEquals("new@example.com", created.getEmail());
+        verify(volunteerRepository).existsByEmail("new@example.com");
         verify(volunteerRepository).save(created);
+        verifyNoMoreInteractions(volunteerRepository);
+        verifyNoInteractions(lotRepository, statusChanger);
+    }
+
+    @Test
+    void create_duplicateEmail_throwsDuplicateVolunteerException() {
+        given(volunteerRepository.existsByEmail("dup@example.com")).willReturn(true);
+
+        VolunteerRequest request = new VolunteerRequest(
+                "Дубль", "dup@example.com", "+380501111111", TransportType.CAR, "Київ");
+
+        assertThrows(DuplicateVolunteerException.class, () -> service.create(request));
+
+        verify(volunteerRepository).existsByEmail("dup@example.com");
+        verify(volunteerRepository, never()).save(any());
         verifyNoMoreInteractions(volunteerRepository);
         verifyNoInteractions(lotRepository, statusChanger);
     }

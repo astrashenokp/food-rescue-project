@@ -87,11 +87,12 @@ HTTP-статуси помилок: **404** — не знайдено, **409** �
 
 | # | Правило | Виняток | HTTP |
 |---|---------|---------|------|
-| 2.1 | Волонтера з вказаним `volunteerId` не знайдено | `VolunteerNotFoundException` | 404 |
-| 2.2 | Резервування дозволене лише для лота у стані `PUBLISHED`. У разі успіху виставляються `reservedByVolunteerId` та `reservedUntil = now + 30 хв` | `InvalidLotStateException` | 422 |
-| 2.3 | Обмежений волонтер (`RESTRICTED`) має доступ лише до категорій `BAKERY` та `GROCERY` (стратегія `ReservationAccessStrategy`) | `ReservationDeniedException` | 403 |
-| 2.4 | Великий лот (≥ 20 кг) перші 10 хвилин з моменту публікації доступний тільки волонтерам рівнів `TRUSTED` | `ReservationDeniedException` | 403 |
-| 2.5 | Скасування резервації дозволене лише для лота у стані `RESERVED`. Лот повертається в `PUBLISHED`, а поля резервації очищуються | `InvalidLotStateException` | 422 |
+| 2.1 | Реєстрація: волонтер із таким email уже існує | `DuplicateVolunteerException` | 409 |
+| 2.2 | Волонтера з вказаним `volunteerId` не знайдено | `VolunteerNotFoundException` | 404 |
+| 2.3 | Резервування дозволене лише для лота у стані `PUBLISHED`. У разі успіху виставляються `reservedByVolunteerId` та `reservedUntil = now + 30 хв` | `InvalidLotStateException` | 422 |
+| 2.4 | Обмежений волонтер (`RESTRICTED`) має доступ лише до категорій `BAKERY` та `GROCERY` (стратегія `ReservationAccessStrategy`) | `ReservationDeniedException` | 403 |
+| 2.5 | Великий лот (≥ 20 кг) перші 10 хвилин з моменту публікації доступний тільки волонтерам рівнів `TRUSTED` | `ReservationDeniedException` | 403 |
+| 2.6 | Скасування резервації дозволене лише для лота у стані `RESERVED`. Лот повертається в `PUBLISHED`, а поля резервації очищуються | `InvalidLotStateException` | 422 |
 | | Лот не існує при спробі резервування | `LotNotFoundException` | 404 |
 
 ### 5.3. БК-3: передача, доставка, підтвердження (модуль `delivery`)

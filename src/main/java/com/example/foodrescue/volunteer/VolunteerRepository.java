@@ -8,4 +8,6 @@ public interface VolunteerRepository {
     VolunteerProfile save(VolunteerProfile volunteer);
 
     Optional<VolunteerProfile> findById(UUID id);
+
+    boolean existsByEmail(String email);
 }

@@ -41,6 +41,10 @@ public class VolunteerServiceImpl implements VolunteerService {
 
     @Override
     public VolunteerProfile create(VolunteerRequest request) {
+        if (volunteerRepository.existsByEmail(request.email())) {
+            throw new DuplicateVolunteerException(request.email());
+        }
+
         VolunteerProfile profile = new VolunteerProfile();
         profile.setId(UUID.randomUUID());
         profile.setFullName(request.fullName());

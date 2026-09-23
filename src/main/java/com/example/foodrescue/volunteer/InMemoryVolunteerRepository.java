@@ -22,4 +22,10 @@ public class InMemoryVolunteerRepository implements VolunteerRepository {
     public Optional<VolunteerProfile> findById(UUID id) {
         return Optional.ofNullable(volunteers.get(id));
     }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        return volunteers.values().stream()
+                .anyMatch(v -> v.getEmail().equalsIgnoreCase(email));
+    }
 }
