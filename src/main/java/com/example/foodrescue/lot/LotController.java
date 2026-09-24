@@ -1,11 +1,11 @@
 package com.example.foodrescue.lot;
 
 import com.example.foodrescue.common.FoodCategory;
-import com.example.foodrescue.common.FoodLot;
 import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.common.LotStatus;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,8 +31,8 @@ public class LotController {
 
     @PostMapping
     public ResponseEntity<Void> create(@Valid @RequestBody LotRequest request) {
-        FoodLot lot = lotService.create(request);
-        return ResponseEntity.created(URI.create("/api/v1/lots/" + lot.getId())).build();
+        LotResponse lot = lotService.create(request);
+        return ResponseEntity.created(URI.create("/api/v1/lots/" + lot.id())).build();
     }
 
     @GetMapping
@@ -40,33 +40,37 @@ public class LotController {
             @RequestParam(required = false) LotStatus status,
             @RequestParam(required = false) FoodCategory category,
             @RequestParam(required = false) UUID donorOrgId) {
-        return lotService.findAll(status, category, donorOrgId).stream()
-                .map(LotResponse::from)
-                .toList();
+        return lotService.findAll(status, category, donorOrgId);
     }
 
     @GetMapping("/{id}")
     public LotResponse getById(@PathVariable UUID id) {
-        return LotResponse.from(lotService.getById(id));
+        return lotService.getById(id);
     }
 
     @PutMapping("/{id}")
     public LotResponse update(@PathVariable UUID id, @Valid @RequestBody LotRequest request) {
-        return LotResponse.from(lotService.update(id, request));
+        return lotService.update(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        lotService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/publication")
     public LotResponse publish(@PathVariable UUID id) {
-        return LotResponse.from(lotService.publish(id));
+        return lotService.publish(id);
     }
 
     @PostMapping("/{id}/cancellation")
     public LotResponse cancel(@PathVariable UUID id) {
-        return LotResponse.from(lotService.cancel(id));
+        return lotService.cancel(id);
     }
 
     @PostMapping("/{id}/approval")
     public LotResponse approve(@PathVariable UUID id, @Valid @RequestBody ApprovalRequest request) {
-        return LotResponse.from(lotService.approve(id, request));
+        return lotService.approve(id, request);
     }
 }

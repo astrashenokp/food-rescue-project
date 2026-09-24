@@ -2,7 +2,10 @@ package com.example.foodrescue.lot;
 
 import com.example.foodrescue.common.ConflictException;
 import com.example.foodrescue.common.FoodCategory;
-import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.common.FoodItemResponse;
+import com.example.foodrescue.common.LotNotFoundException;
+import com.example.foodrescue.common.LotResponse;
+import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.ItemUnit;
 import com.example.foodrescue.common.StorageCondition;
 import org.junit.jupiter.api.Test;
@@ -22,7 +25,10 @@ import tools.jackson.databind.ObjectMapper;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -54,11 +60,30 @@ class LotControllerTest {
                 to);
     }
 
+    private LotResponse lotResponse(UUID id, LotStatus status) {
+        Instant from = Instant.now().plus(2, ChronoUnit.HOURS);
+        return new LotResponse(
+                id,
+                UUID.randomUUID(),
+                "Хліб і випічка",
+                FoodCategory.BAKERY,
+                List.of(new FoodItemResponse(UUID.randomUUID(), "Хліб", BigDecimal.valueOf(5), ItemUnit.KG, null)),
+                BigDecimal.valueOf(5),
+                StorageCondition.ROOM,
+                "вул. Хлібна, 1",
+                from,
+                from.plus(2, ChronoUnit.HOURS),
+                status,
+                Instant.now(),
+                null,
+                null,
+                null);
+    }
+
     // 1. Валідний запит -> правильний статус і виклик сервісу
     @Test
     void validRequest_returnsCreated_andCallsService() throws Exception {
-        FoodLot lot = new FoodLot(UUID.randomUUID());
-        given(lotService.create(any())).willReturn(lot);
+        given(lotService.create(any())).willReturn(lotResponse(UUID.randomUUID(), LotStatus.DRAFT));
 
         mockMvc.perform(post("/api/v1/lots")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -102,5 +127,63 @@ class LotControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void findAll_withStatus_passesStatusToService() throws Exception {
+        UUID lotId = UUID.randomUUID();
+        given(lotService.findAll(LotStatus.PUBLISHED, null, null))
+                .willReturn(List.of(lotResponse(lotId, LotStatus.PUBLISHED)));
+
+        mockMvc.perform(get("/api/v1/lots").param("status", "PUBLISHED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(lotId.toString()))
+                .andExpect(jsonPath("$[0].status").value("PUBLISHED"))
+                .andExpect(jsonPath("$[0].items[0].name").value("Хліб"));
+
+        verify(lotService).findAll(LotStatus.PUBLISHED, null, null);
+    }
+
+    @Test
+    void findAll_unknownStatus_returnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/lots").param("status", "UNKNOWN"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getById_unknownLot_returnsNotFound() throws Exception {
+        UUID lotId = UUID.randomUUID();
+        given(lotService.getById(lotId)).willThrow(new LotNotFoundException(lotId));
+
+        mockMvc.perform(get("/api/v1/lots/" + lotId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void delete_draftLot_returnsNoContent_andCallsService() throws Exception {
+        UUID lotId = UUID.randomUUID();
+
+        mockMvc.perform(delete("/api/v1/lots/" + lotId))
+                .andExpect(status().isNoContent());
+
+        verify(lotService).delete(lotId);
+    }
+
+    @Test
+    void delete_lotNotDraft_returnsConflict() throws Exception {
+        UUID lotId = UUID.randomUUID();
+        doThrow(new LotNotDraftException(lotId)).when(lotService).delete(lotId);
+
+        mockMvc.perform(delete("/api/v1/lots/" + lotId))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void delete_unknownLot_returnsNotFound() throws Exception {
+        UUID lotId = UUID.randomUUID();
+        doThrow(new LotNotFoundException(lotId)).when(lotService).delete(lotId);
+
+        mockMvc.perform(delete("/api/v1/lots/" + lotId))
+                .andExpect(status().isNotFound());
     }
 }

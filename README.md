@@ -72,16 +72,18 @@ HTTP-статуси помилок: **404** — не знайдено, **409** �
 | # | Правило | Виняток | HTTP |
 |---|---------|---------|------|
 | 1.1 | `pickupTo` пізніше за `pickupFrom`, `pickupFrom` у майбутньому, вікно не коротше за мінімум для категорії (стратегія `PickupWindowStrategy`). Діє і при створенні, і при оновленні | `InvalidPickupWindowException` | 422 |
-| 1.2 | Оновлення (`PUT`) дозволене лише для лота в стані `DRAFT` | `LotNotDraftException` | 409 |
+| 1.2 | Оновлення (`PUT`) дозволене лише для лота в стані `DRAFT`. Позиції лота при цьому замінюються цілком | `LotNotDraftException` | 409 |
 | 1.3 | Публікація: `DRAFT` → `PUBLISHED` і виставляється `publishedAt`. Якщо в донора не менше 5 лотів і скасовано понад 20%, лот іде в `PENDING_MODERATION`, а `publishedAt` не виставляється | `InvalidLotStateException` | 422 |
 | 1.4 | Скасування дозволене зі станів `DRAFT`, `PENDING_MODERATION`, `PUBLISHED`. З `RESERVED` і далі заборонене | `InvalidLotStateException` | 422 |
+| 1.5 | Видалення лота (`DELETE`) і будь-яка зміна його позицій (додати, змінити, видалити) дозволені лише в стані `DRAFT` | `LotNotDraftException` | 409 |
 | | Лот не існує | `LotNotFoundException` | 404 |
+| | Позиція не існує в цьому лоті (зокрема належить іншому лоту) | `FoodItemNotFoundException` | 404 |
 
 Рішення модератора (`approve`): `approved = true` веде в `PUBLISHED` і виставляє `publishedAt`, `approved = false` повертає лот у `DRAFT`. Недозволений перехід за матрицею дає `InvalidLotStateException` (422).
 
 Поріг скасувань рахується лише за лотами того самого донора: 1 скасований з 5 це рівно 20%, тому лот публікується, а 2 з 5 це вже модерація. Менше 5 лотів у донора скасування не враховуються взагалі.
 
-Статистика донора (`DonorStatsService.recordOutcome`) не має власних ендпоінтів: лічильники `confirmedLots` і `disputedLots` оновлюються після події про завершену доставку (розділ 7).
+Статистика донора (`DonorStatsService.recordOutcome`) не має власних ендпоінтів: лічильники `confirmedLots` і `disputedLots` оновлюються після події про завершену доставку (розділ 7) атомарним `UPDATE ... SET x = x + 1`. Якщо запису донора ще немає, він створюється і `UPDATE` повторюється.
 
 ### 5.2. БК-2: волонтери та резервування (модуль `volunteer`)
 
@@ -176,11 +178,36 @@ SQL усіх запитів видно в журналі (`spring.jpa.show-sql=t
 
 | Ендпоінт | Запит у репозиторії | У журналі |
 |----------|---------------------|-----------|
-| _заповнюють Людини 1, 2 і 3 у своїх треках_ | | |
+| `GET /api/v1/lots` | `LotRepository.findAllWithItems()`: `SELECT DISTINCT l FROM FoodLot l LEFT JOIN FETCH l.items ORDER BY l.createdAt DESC` | один `select … from food_lots … left join food_items … order by created_at desc` |
+| `GET /api/v1/lots?status=…` | `LotRepository.findAllByStatusWithItems(status)`: те саме з `WHERE l.status = :status` | один `select` з `left join food_items` |
+| `GET /api/v1/lots/{id}` | `LotRepository.findByIdWithItems(id)` | один `select` з `left join food_items` |
+| `GET /api/v1/lots/{lotId}/items` | `FoodItemRepository.findByLotId(lotId)`: позиції читаються напряму, лот не потрібен | один `select … from food_items where lot_id = ?` |
+| _Людини 2 і 3 додають свої ендпоінти_ | | |
+
+Без `JOIN FETCH` список із 5 лотів по 2 позиції дав би 6 запитів (1 на лоти і по одному на позиції кожного лота). Це перевіряє тест `LotRepositoryTest.findAllWithItems_loadsLotsWithItemsInSingleQuery` через статистику Hibernate (`getPrepareStatementCount() == 1`).
 
 ### 8.4. Каскад і `orphanRemoval`
 
-_Розділ заповнює Людина 1._
+Лот (`FoodLot`) і його позиції (`FoodItem`) пов'язані двостороннім зв'язком: власник зв'язку, тобто сторона з зовнішнім ключем `lot_id`, це `FoodItem.lot`, а `FoodLot.items` позначений `mappedBy = "lot"`. Обидві сторони `LAZY`.
+
+```java
+@OneToMany(mappedBy = "lot", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+private List<FoodItem> items = new ArrayList<>();
+```
+
+| Що робимо | Що відбувається в базі |
+|-----------|------------------------|
+| `lotRepository.save(lot)` для нового лота з позиціями | Каскад `PERSIST`: позиції зберігаються разом із лотом, окремий `save` для них не потрібен |
+| `lot.addItem(item)` для лота, який уже є в базі | Позиція зберігається каскадом при коміті транзакції |
+| `lot.removeItem(item)` | `orphanRemoval`: рядок позиції видаляється, бо вона більше не в колекції лота. Окремий `delete` не потрібен |
+| `lot.replaceItems(newItems)` (це робить `PUT /lots/{id}`) | Старі позиції видаляються як «сироти», нові вставляються |
+| `DELETE /lots/{id}` | Каскад `REMOVE`: разом із лотом видаляються всі його позиції |
+
+Чим відрізняються `CascadeType.REMOVE` і `orphanRemoval`: `REMOVE` видаляє дітей, коли видаляють батька, а `orphanRemoval` видаляє дитину, щойно її прибрали з колекції батька, навіть якщо сам батько лишається.
+
+Зв'язок змінюється лише допоміжними методами `addItem` / `removeItem` / `replaceItems`, які тримають обидві сторони узгодженими (`items.add(item)` і `item.setLot(this)`). Геттер `getItems()` повертає саму колекцію, а не копію, інакше Hibernate не побачить змін. Усе це змінюється лише в стані `DRAFT` (правило 1.5).
+
+Каскад і `orphanRemoval` перевіряють тести `LotRepositoryTest`: `save_cascadesInsertToItems`, `removeItem_deletesOrphanRowFromDatabase`, `replaceItems_deletesOldItemsAndInsertsNewOnes`, `delete_lotRemovesAllItemsByCascade`.
 
 ### 8.5. Зв'язок many-to-many «улюблені пункти»
 

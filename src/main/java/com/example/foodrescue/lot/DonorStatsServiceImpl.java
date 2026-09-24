@@ -2,6 +2,7 @@ package com.example.foodrescue.lot;
 
 import com.example.foodrescue.delivery.DeliveryOutcome;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -15,15 +16,18 @@ public class DonorStatsServiceImpl implements DonorStatsService {
     }
 
     @Override
-    public synchronized void recordOutcome(UUID donorOrgId, DeliveryOutcome outcome) {
-        DonorStats current = donorStatsRepository.findByDonorOrgId(donorOrgId)
-                .orElseGet(() -> new DonorStats(donorOrgId, 0, 0));
+    @Transactional
+    public void recordOutcome(UUID donorOrgId, DeliveryOutcome outcome) {
+        if (increment(donorOrgId, outcome) == 0) {
+            donorStatsRepository.save(new DonorStats(donorOrgId, 0, 0));
+            increment(donorOrgId, outcome);
+        }
+    }
 
-        DonorStats updated = switch (outcome) {
-            case CONFIRMED -> new DonorStats(donorOrgId, current.confirmedLots() + 1, current.disputedLots());
-            case DISPUTED -> new DonorStats(donorOrgId, current.confirmedLots(), current.disputedLots() + 1);
+    private int increment(UUID donorOrgId, DeliveryOutcome outcome) {
+        return switch (outcome) {
+            case CONFIRMED -> donorStatsRepository.incrementConfirmed(donorOrgId);
+            case DISPUTED -> donorStatsRepository.incrementDisputed(donorOrgId);
         };
-
-        donorStatsRepository.save(updated);
     }
 }
