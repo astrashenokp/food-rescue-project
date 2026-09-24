@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -27,7 +28,7 @@ public class DeliveryController {
     public ResponseEntity<Void> createDestinationPoint(@Valid @RequestBody DestinationPointRequest request) {
         DestinationPoint point = deliveryService.createDestinationPoint(request);
         return ResponseEntity
-                .created(URI.create("/api/v1/destination-points/" + point.id()))
+                .created(URI.create("/api/v1/destination-points/" + point.getId()))
                 .build();
     }
 
@@ -35,12 +36,12 @@ public class DeliveryController {
     public DestinationPointResponse getDestinationPoint(@PathVariable UUID id) {
         DestinationPoint point = deliveryService.getDestinationPoint(id);
         return new DestinationPointResponse(
-                point.id(),
-                point.organizationId(),
-                point.name(),
-                point.address(),
-                point.workingHours(),
-                point.acceptedCategories());
+                point.getId(),
+                point.getOrganizationId(),
+                point.getName(),
+                point.getAddress(),
+                point.getWorkingHours(),
+                Set.copyOf(point.getAcceptedCategories()));
     }
 
     @PostMapping("/lots/{id}/pickup")

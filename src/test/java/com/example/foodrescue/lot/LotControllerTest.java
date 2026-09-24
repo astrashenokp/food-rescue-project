@@ -57,8 +57,7 @@ class LotControllerTest {
     // 1. Валідний запит -> правильний статус і виклик сервісу
     @Test
     void validRequest_returnsCreated_andCallsService() throws Exception {
-        FoodLot lot = new FoodLot();
-        lot.setId(UUID.randomUUID());
+        FoodLot lot = new FoodLot(UUID.randomUUID());
         given(lotService.create(any())).willReturn(lot);
 
         mockMvc.perform(post("/api/v1/lots")

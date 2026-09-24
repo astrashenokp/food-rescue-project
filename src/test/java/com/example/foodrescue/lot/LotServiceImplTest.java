@@ -85,8 +85,7 @@ class LotServiceImplTest {
     }
 
     private FoodLot lot(LotStatus status) {
-        FoodLot lot = new FoodLot();
-        lot.setId(UUID.randomUUID());
+        FoodLot lot = new FoodLot(UUID.randomUUID());
         lot.setDonorOrgId(DONOR);
         lot.setCategory(FoodCategory.BAKERY);
         lot.setTitle("Старий заголовок");
@@ -96,8 +95,7 @@ class LotServiceImplTest {
     }
 
     private FoodLot otherLot(UUID donor, FoodCategory category, LotStatus status) {
-        FoodLot lot = new FoodLot();
-        lot.setId(UUID.randomUUID());
+        FoodLot lot = new FoodLot(UUID.randomUUID());
         lot.setDonorOrgId(donor);
         lot.setCategory(category);
         lot.setStatus(status);

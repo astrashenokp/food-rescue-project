@@ -89,8 +89,7 @@ class DeliveryServiceImplTest {
     }
 
     private FoodLot lot(LotStatus status, FoodCategory category) {
-        FoodLot lot = new FoodLot();
-        lot.setId(LOT_ID);
+        FoodLot lot = new FoodLot(LOT_ID);
         lot.setDonorOrgId(DONOR_ID);
         lot.setReservedByVolunteerId(VOLUNTEER_ID);
         lot.setReservedUntil(NOW.plus(30, ChronoUnit.MINUTES));
@@ -160,8 +159,8 @@ class DeliveryServiceImplTest {
 
         DestinationPoint created = service.createDestinationPoint(request);
 
-        assertNotNull(created.id());
-        assertEquals(request.name(), created.name());
+        assertNotNull(created.getId());
+        assertEquals(request.name(), created.getName());
         verify(destinationPointRepository).existsByName(request.name());
         verify(destinationPointRepository).save(created);
         verifyNoMoreInteractions(destinationPointRepository);

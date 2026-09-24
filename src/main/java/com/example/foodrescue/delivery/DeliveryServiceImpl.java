@@ -111,8 +111,8 @@ public class DeliveryServiceImpl implements DeliveryService {
         DestinationPoint point = destinationPointRepository.findById(request.destinationPointId())
                 .orElseThrow(() -> new DestinationPointNotFoundException(request.destinationPointId()));
 
-        if (!point.acceptedCategories().contains(lot.getCategory())) {
-            throw new CategoryNotAcceptedException(point.id(), lot.getCategory());
+        if (!point.getAcceptedCategories().contains(lot.getCategory())) {
+            throw new CategoryNotAcceptedException(point.getId(), lot.getCategory());
         }
 
         Delivery current = deliveryRepository.findByLotId(lotId)
@@ -123,7 +123,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         Delivery updated = new Delivery(
                 current.lotId(),
                 current.volunteerId(),
-                point.id(),
+                point.getId(),
                 current.pickedUpAt(),
                 current.pickupWeightKg(),
                 current.latePickup(),
@@ -225,10 +225,10 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     private StatusHistoryResponse toHistoryResponse(LotStatusHistory history) {
         return new StatusHistoryResponse(
-                history.fromStatus(),
-                history.toStatus(),
-                history.changedAt(),
-                history.comment());
+                history.getFromStatus(),
+                history.getToStatus(),
+                history.getChangedAt(),
+                history.getComment());
     }
 
     private boolean hasWeightDifference(BigDecimal pickupWeight,
