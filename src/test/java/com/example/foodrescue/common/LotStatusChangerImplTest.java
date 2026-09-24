@@ -28,8 +28,7 @@ class LotStatusChangerImplTest {
     }
 
     private FoodLot createLot(LotStatus status) {
-        FoodLot lot = new FoodLot();
-        lot.setId(UUID.randomUUID());
+        FoodLot lot = new FoodLot(UUID.randomUUID());
         lot.setStatus(status);
         return lot;
     }

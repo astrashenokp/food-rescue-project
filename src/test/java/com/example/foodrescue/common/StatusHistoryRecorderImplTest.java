@@ -2,6 +2,10 @@ package com.example.foodrescue.common;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -10,78 +14,68 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+@ExtendWith(MockitoExtension.class)
 class StatusHistoryRecorderImplTest {
 
     private static final Instant FIXED_INSTANT = Instant.parse("2026-09-20T10:00:00Z");
+
+    @Mock
+    private LotStatusHistoryRepository historyRepository;
 
     private StatusHistoryRecorderImpl recorder;
 
     @BeforeEach
     void setUp() {
-        Clock fixedClock = Clock.fixed(FIXED_INSTANT, ZoneOffset.UTC);
-        recorder = new StatusHistoryRecorderImpl(fixedClock);
+        recorder = new StatusHistoryRecorderImpl(historyRepository, Clock.fixed(FIXED_INSTANT, ZoneOffset.UTC));
     }
 
     @Test
-    void record_addsHistoryEntryWithFixedTime() {
+    void record_savesHistoryEntryWithTimeFromClock() {
         UUID lotId = UUID.randomUUID();
 
         recorder.record(lotId, LotStatus.DRAFT, LotStatus.PUBLISHED, "Опубліковано");
 
-        List<LotStatusHistory> history = recorder.findByLot(lotId);
-        assertEquals(1, history.size());
-        LotStatusHistory entry = history.getFirst();
-        assertEquals(lotId, entry.lotId());
-        assertEquals(LotStatus.DRAFT, entry.fromStatus());
-        assertEquals(LotStatus.PUBLISHED, entry.toStatus());
-        assertEquals(FIXED_INSTANT, entry.changedAt());
-        assertEquals("Опубліковано", entry.comment());
+        ArgumentCaptor<LotStatusHistory> captor = ArgumentCaptor.forClass(LotStatusHistory.class);
+        verify(historyRepository).save(captor.capture());
+        verifyNoMoreInteractions(historyRepository);
+        LotStatusHistory entry = captor.getValue();
+        assertEquals(lotId, entry.getLotId());
+        assertEquals(LotStatus.DRAFT, entry.getFromStatus());
+        assertEquals(LotStatus.PUBLISHED, entry.getToStatus());
+        assertEquals(FIXED_INSTANT, entry.getChangedAt());
+        assertEquals("Опубліковано", entry.getComment());
     }
 
     @Test
-    void findByLot_filtersOnlyRequestedLot() {
-        UUID lot1 = UUID.randomUUID();
-        UUID lot2 = UUID.randomUUID();
+    void findByLot_returnsRepositoryResultInStoredOrder() {
+        UUID lotId = UUID.randomUUID();
+        List<LotStatusHistory> stored = List.of(
+                new LotStatusHistory(lotId, LotStatus.DRAFT, LotStatus.PUBLISHED, FIXED_INSTANT, "Публікація"),
+                new LotStatusHistory(lotId, LotStatus.PUBLISHED, LotStatus.RESERVED, FIXED_INSTANT, "Резерв"));
+        given(historyRepository.findByLotIdOrderByIdAsc(lotId)).willReturn(stored);
 
-        recorder.record(lot1, LotStatus.DRAFT, LotStatus.PUBLISHED, "Лот 1");
-        recorder.record(lot2, LotStatus.DRAFT, LotStatus.PUBLISHED, "Лот 2");
-        recorder.record(lot1, LotStatus.PUBLISHED, LotStatus.RESERVED, "Лот 1 резерв");
+        List<LotStatusHistory> result = recorder.findByLot(lotId);
 
-        List<LotStatusHistory> historyLot1 = recorder.findByLot(lot1);
-        List<LotStatusHistory> historyLot2 = recorder.findByLot(lot2);
-
-        assertEquals(2, historyLot1.size());
-        assertEquals(1, historyLot2.size());
-        assertTrue(historyLot1.stream().allMatch(h -> h.lotId().equals(lot1)));
-        assertTrue(historyLot2.stream().allMatch(h -> h.lotId().equals(lot2)));
+        assertSame(stored, result);
+        verify(historyRepository).findByLotIdOrderByIdAsc(lotId);
+        verifyNoMoreInteractions(historyRepository);
     }
 
     @Test
     void findByLot_noEntries_returnsEmptyList() {
         UUID lotId = UUID.randomUUID();
+        given(historyRepository.findByLotIdOrderByIdAsc(lotId)).willReturn(List.of());
 
-        List<LotStatusHistory> history = recorder.findByLot(lotId);
+        List<LotStatusHistory> result = recorder.findByLot(lotId);
 
-        assertTrue(history.isEmpty());
-    }
-
-    @Test
-    void record_multipleTransitionsSameLot_preservesOrder() {
-        UUID lotId = UUID.randomUUID();
-
-        recorder.record(lotId, LotStatus.DRAFT, LotStatus.PUBLISHED, "Публікація");
-        recorder.record(lotId, LotStatus.PUBLISHED, LotStatus.RESERVED, "Резерв");
-        recorder.record(lotId, LotStatus.RESERVED, LotStatus.PICKED_UP, "Забрано");
-
-        List<LotStatusHistory> history = recorder.findByLot(lotId);
-        assertEquals(3, history.size());
-        assertEquals(LotStatus.DRAFT, history.get(0).fromStatus());
-        assertEquals(LotStatus.PUBLISHED, history.get(0).toStatus());
-        assertEquals(LotStatus.PUBLISHED, history.get(1).fromStatus());
-        assertEquals(LotStatus.RESERVED, history.get(1).toStatus());
-        assertEquals(LotStatus.RESERVED, history.get(2).fromStatus());
-        assertEquals(LotStatus.PICKED_UP, history.get(2).toStatus());
+        assertTrue(result.isEmpty());
+        verify(historyRepository).findByLotIdOrderByIdAsc(lotId);
+        verifyNoMoreInteractions(historyRepository);
     }
 }

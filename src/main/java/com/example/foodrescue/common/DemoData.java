@@ -8,7 +8,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -38,12 +37,11 @@ public class DemoData implements CommandLineRunner {
     }
 
     private FoodLot draftLot(Instant now) {
-        FoodLot lot = new FoodLot();
-        lot.setId(LOT_DRAFT);
+        FoodLot lot = new FoodLot(LOT_DRAFT);
         lot.setDonorOrgId(DONOR);
         lot.setTitle("Хліб і випічка (чернетка)");
         lot.setCategory(FoodCategory.BAKERY);
-        lot.setItems(List.of(new FoodItem("Хліб пшеничний", BigDecimal.valueOf(5), ItemUnit.KG, bestBefore(now, 2))));
+        lot.addItem(new FoodItem("Хліб пшеничний", BigDecimal.valueOf(5), ItemUnit.KG, bestBefore(now, 2)));
         lot.setTotalWeightKg(BigDecimal.valueOf(5));
         lot.setStorageCondition(StorageCondition.ROOM);
         lot.setPickupAddress("вул. Хлібна, 1, Київ");
@@ -55,12 +53,11 @@ public class DemoData implements CommandLineRunner {
     }
 
     private FoodLot publishedLot(Instant now) {
-        FoodLot lot = new FoodLot();
-        lot.setId(LOT_PUBLISHED);
+        FoodLot lot = new FoodLot(LOT_PUBLISHED);
         lot.setDonorOrgId(DONOR);
         lot.setTitle("Хліб і випічка");
         lot.setCategory(FoodCategory.BAKERY);
-        lot.setItems(List.of(new FoodItem("Хліб житній", BigDecimal.valueOf(5), ItemUnit.KG, bestBefore(now, 2))));
+        lot.addItem(new FoodItem("Хліб житній", BigDecimal.valueOf(5), ItemUnit.KG, bestBefore(now, 2)));
         lot.setTotalWeightKg(BigDecimal.valueOf(5));
         lot.setStorageCondition(StorageCondition.ROOM);
         lot.setPickupAddress("вул. Хлібна, 2, Київ");
@@ -73,12 +70,11 @@ public class DemoData implements CommandLineRunner {
     }
 
     private FoodLot publishedBigLot(Instant now) {
-        FoodLot lot = new FoodLot();
-        lot.setId(LOT_PUBLISHED_BIG);
+        FoodLot lot = new FoodLot(LOT_PUBLISHED_BIG);
         lot.setDonorOrgId(DONOR);
         lot.setTitle("Готові страви з кухні");
         lot.setCategory(FoodCategory.PREPARED_MEAL);
-        lot.setItems(List.of(new FoodItem("Суп овочевий", BigDecimal.valueOf(25), ItemUnit.KG, bestBefore(now, 1))));
+        lot.addItem(new FoodItem("Суп овочевий", BigDecimal.valueOf(25), ItemUnit.KG, bestBefore(now, 1)));
         lot.setTotalWeightKg(BigDecimal.valueOf(25));
         lot.setStorageCondition(StorageCondition.CHILLED);
         lot.setPickupAddress("вул. Кухонна, 3, Київ");
@@ -91,12 +87,11 @@ public class DemoData implements CommandLineRunner {
     }
 
     private FoodLot reservedLot(Instant now) {
-        FoodLot lot = new FoodLot();
-        lot.setId(LOT_RESERVED);
+        FoodLot lot = new FoodLot(LOT_RESERVED);
         lot.setDonorOrgId(DONOR);
         lot.setTitle("Овочі та фрукти");
         lot.setCategory(FoodCategory.VEGETABLES);
-        lot.setItems(List.of(new FoodItem("Яблука", BigDecimal.valueOf(8), ItemUnit.KG, bestBefore(now, 3))));
+        lot.addItem(new FoodItem("Яблука", BigDecimal.valueOf(8), ItemUnit.KG, bestBefore(now, 3)));
         lot.setTotalWeightKg(BigDecimal.valueOf(8));
         lot.setStorageCondition(StorageCondition.ROOM);
         lot.setPickupAddress("вул. Ринкова, 4, Київ");

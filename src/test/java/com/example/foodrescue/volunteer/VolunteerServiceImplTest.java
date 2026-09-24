@@ -93,8 +93,7 @@ class VolunteerServiceImplTest {
     }
 
     private FoodLot publishedLot(FoodCategory category, BigDecimal weight, Instant publishedAt) {
-        FoodLot lot = new FoodLot();
-        lot.setId(LOT_ID);
+        FoodLot lot = new FoodLot(LOT_ID);
         lot.setCategory(category);
         lot.setTotalWeightKg(weight);
         lot.setStatus(LotStatus.PUBLISHED);

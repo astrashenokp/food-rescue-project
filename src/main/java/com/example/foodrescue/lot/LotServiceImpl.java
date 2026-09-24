@@ -43,8 +43,7 @@ public class LotServiceImpl implements LotService {
         Instant now = Instant.now(clock);
         validatePickupWindow(request, now);
 
-        FoodLot lot = new FoodLot();
-        lot.setId(UUID.randomUUID());
+        FoodLot lot = new FoodLot(UUID.randomUUID());
         applyRequest(lot, request);
         lot.setCreatedAt(now);
         lot.setStatus(LotStatus.DRAFT);
@@ -137,7 +136,7 @@ public class LotServiceImpl implements LotService {
         lot.setDonorOrgId(request.donorOrgId());
         lot.setTitle(request.title());
         lot.setCategory(request.category());
-        lot.setItems(request.items().stream().map(this::toFoodItem).toList());
+        lot.replaceItems(request.items().stream().map(this::toFoodItem).toList());
         lot.setTotalWeightKg(request.totalWeightKg());
         lot.setStorageCondition(request.storageCondition());
         lot.setPickupAddress(request.pickupAddress());

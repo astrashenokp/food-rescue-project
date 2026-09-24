@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 import java.time.temporal.ChronoUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,7 +18,7 @@ class ReservationAccessStrategiesTest {
     private static final Instant NOW = Instant.parse("2026-09-20T12:00:00Z");
 
     private FoodLot lot(FoodCategory category, BigDecimal weight, Instant publishedAt) {
-        FoodLot lot = new FoodLot();
+        FoodLot lot = new FoodLot(UUID.randomUUID());
         lot.setCategory(category);
         lot.setTotalWeightKg(weight);
         lot.setPublishedAt(publishedAt);
