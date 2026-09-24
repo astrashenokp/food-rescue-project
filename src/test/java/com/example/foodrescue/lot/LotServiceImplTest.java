@@ -1,11 +1,13 @@
 package com.example.foodrescue.lot;
 
 import com.example.foodrescue.common.FoodCategory;
+import com.example.foodrescue.common.FoodItem;
 import com.example.foodrescue.common.FoodLot;
 import com.example.foodrescue.common.InvalidLotStateException;
 import com.example.foodrescue.common.ItemUnit;
 import com.example.foodrescue.common.LotNotFoundException;
 import com.example.foodrescue.common.LotRepository;
+import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.LotStatusChanger;
 import com.example.foodrescue.common.StorageCondition;
@@ -22,7 +24,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,7 +31,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -91,6 +91,7 @@ class LotServiceImplTest {
         lot.setTitle("Старий заголовок");
         lot.setCreatedAt(NOW.minus(1, ChronoUnit.DAYS));
         lot.setStatus(status);
+        lot.addItem(new FoodItem("Старий хліб", BigDecimal.ONE, ItemUnit.KG, null));
         return lot;
     }
 
@@ -102,29 +103,26 @@ class LotServiceImplTest {
         return lot;
     }
 
-    private List<FoodLot> donorLots(FoodLot target, int otherLotsCount, int cancelledCount) {
-        List<FoodLot> lots = new ArrayList<>();
-        lots.add(target);
-        for (int i = 0; i < otherLotsCount; i++) {
-            lots.add(otherLot(DONOR, FoodCategory.BAKERY, i < cancelledCount ? LotStatus.CANCELLED : LotStatus.PUBLISHED));
-        }
-        return lots;
+    private void givenLotWithItems(FoodLot lot) {
+        given(lotRepository.findByIdWithItems(lot.getId())).willReturn(Optional.of(lot));
+        given(lotRepository.save(lot)).willReturn(lot);
     }
 
     @Test
     void create_validRequest_savesDraftLot() {
         given(lotRepository.save(any(FoodLot.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        FoodLot created = service.create(validRequest());
+        LotResponse created = service.create(validRequest());
 
-        assertNotNull(created.getId());
-        assertEquals(LotStatus.DRAFT, created.getStatus());
-        assertEquals(NOW, created.getCreatedAt());
-        assertNull(created.getPublishedAt());
-        assertEquals("Хліб і випічка", created.getTitle());
-        assertEquals(FoodCategory.BAKERY, created.getCategory());
-        assertEquals(1, created.getItems().size());
-        verify(lotRepository).save(created);
+        assertNotNull(created.id());
+        assertEquals(LotStatus.DRAFT, created.status());
+        assertEquals(NOW, created.createdAt());
+        assertNull(created.publishedAt());
+        assertEquals("Хліб і випічка", created.title());
+        assertEquals(FoodCategory.BAKERY, created.category());
+        assertEquals(1, created.items().size());
+        assertEquals("Хліб", created.items().getFirst().name());
+        verify(lotRepository).save(any(FoodLot.class));
         verifyNoMoreInteractions(lotRepository);
         verifyNoInteractions(statusChanger);
     }
@@ -170,27 +168,100 @@ class LotServiceImplTest {
         given(lotRepository.save(any(FoodLot.class))).willAnswer(invocation -> invocation.getArgument(0));
         Instant from = NOW.plus(1, ChronoUnit.HOURS);
 
-        FoodLot created = service.create(request(category, from, from.plus(minMinutes, ChronoUnit.MINUTES)));
+        LotResponse created = service.create(request(category, from, from.plus(minMinutes, ChronoUnit.MINUTES)));
 
-        assertEquals(category, created.getCategory());
-        verify(lotRepository).save(created);
+        assertEquals(category, created.category());
+        verify(lotRepository).save(any(FoodLot.class));
         verifyNoMoreInteractions(lotRepository);
         verifyNoInteractions(statusChanger);
     }
 
     @Test
-    void update_draftLot_appliesRequestAndKeepsStatus() {
+    void findAll_withoutStatus_readsAllLotsWithItemsInOneCall() {
+        FoodLot draft = otherLot(DONOR, FoodCategory.BAKERY, LotStatus.DRAFT);
+        FoodLot published = otherLot(DONOR, FoodCategory.GROCERY, LotStatus.PUBLISHED);
+        given(lotRepository.findAllWithItems()).willReturn(List.of(draft, published));
+
+        List<LotResponse> result = service.findAll(null, null, null);
+
+        assertEquals(2, result.size());
+        verify(lotRepository).findAllWithItems();
+        verifyNoMoreInteractions(lotRepository);
+        verifyNoInteractions(statusChanger);
+    }
+
+    @Test
+    void findAll_withStatus_readsOnlyThatStatusWithItems() {
+        FoodLot published = otherLot(DONOR, FoodCategory.BAKERY, LotStatus.PUBLISHED);
+        given(lotRepository.findAllByStatusWithItems(LotStatus.PUBLISHED)).willReturn(List.of(published));
+
+        List<LotResponse> result = service.findAll(LotStatus.PUBLISHED, null, null);
+
+        assertEquals(1, result.size());
+        assertEquals(LotStatus.PUBLISHED, result.getFirst().status());
+        verify(lotRepository).findAllByStatusWithItems(LotStatus.PUBLISHED);
+        verifyNoMoreInteractions(lotRepository);
+        verifyNoInteractions(statusChanger);
+    }
+
+    @Test
+    void findAll_categoryAndDonorFilters_areAppliedToFetchedLots() {
+        FoodLot bakery = otherLot(DONOR, FoodCategory.BAKERY, LotStatus.PUBLISHED);
+        FoodLot grocery = otherLot(DONOR, FoodCategory.GROCERY, LotStatus.PUBLISHED);
+        FoodLot otherDonorBakery = otherLot(OTHER_DONOR, FoodCategory.BAKERY, LotStatus.PUBLISHED);
+        given(lotRepository.findAllWithItems()).willReturn(List.of(bakery, grocery, otherDonorBakery));
+
+        assertEquals(List.of(bakery.getId()),
+                service.findAll(null, FoodCategory.BAKERY, DONOR).stream().map(LotResponse::id).toList());
+        assertEquals(List.of(grocery.getId()),
+                service.findAll(null, FoodCategory.GROCERY, null).stream().map(LotResponse::id).toList());
+        assertEquals(List.of(otherDonorBakery.getId()),
+                service.findAll(null, null, OTHER_DONOR).stream().map(LotResponse::id).toList());
+
+        verify(lotRepository, times(3)).findAllWithItems();
+        verifyNoMoreInteractions(lotRepository);
+        verifyNoInteractions(statusChanger);
+    }
+
+    @Test
+    void getById_existingLot_returnsResponseWithItems() {
         FoodLot lot = lot(LotStatus.DRAFT);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
-        given(lotRepository.save(lot)).willReturn(lot);
+        given(lotRepository.findByIdWithItems(lot.getId())).willReturn(Optional.of(lot));
 
-        FoodLot updated = service.update(lot.getId(), validRequest());
+        LotResponse result = service.getById(lot.getId());
 
-        assertSame(lot, updated);
-        assertEquals("Хліб і випічка", updated.getTitle());
-        assertEquals(LotStatus.DRAFT, updated.getStatus());
-        assertEquals(NOW.minus(1, ChronoUnit.DAYS), updated.getCreatedAt());
-        verify(lotRepository).findById(lot.getId());
+        assertEquals(lot.getId(), result.id());
+        assertEquals(1, result.items().size());
+        verify(lotRepository).findByIdWithItems(lot.getId());
+        verifyNoMoreInteractions(lotRepository);
+        verifyNoInteractions(statusChanger);
+    }
+
+    @Test
+    void getById_unknownLot_throwsLotNotFound() {
+        UUID id = UUID.randomUUID();
+        given(lotRepository.findByIdWithItems(id)).willReturn(Optional.empty());
+
+        assertThrows(LotNotFoundException.class, () -> service.getById(id));
+
+        verify(lotRepository).findByIdWithItems(id);
+        verifyNoMoreInteractions(lotRepository);
+        verifyNoInteractions(statusChanger);
+    }
+
+    @Test
+    void update_draftLot_replacesFieldsAndItemsAndKeepsStatus() {
+        FoodLot lot = lot(LotStatus.DRAFT);
+        givenLotWithItems(lot);
+
+        LotResponse updated = service.update(lot.getId(), validRequest());
+
+        assertEquals("Хліб і випічка", updated.title());
+        assertEquals(LotStatus.DRAFT, updated.status());
+        assertEquals(NOW.minus(1, ChronoUnit.DAYS), updated.createdAt());
+        assertEquals(1, updated.items().size());
+        assertEquals("Хліб", updated.items().getFirst().name());
+        verify(lotRepository).findByIdWithItems(lot.getId());
         verify(lotRepository).save(lot);
         verifyNoMoreInteractions(lotRepository);
         verifyNoInteractions(statusChanger);
@@ -199,11 +270,11 @@ class LotServiceImplTest {
     @Test
     void update_lotNotDraft_throwsLotNotDraftAndDoesNotSave() {
         FoodLot lot = lot(LotStatus.PUBLISHED);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
+        given(lotRepository.findByIdWithItems(lot.getId())).willReturn(Optional.of(lot));
 
         assertThrows(LotNotDraftException.class, () -> service.update(lot.getId(), validRequest()));
 
-        verify(lotRepository).findById(lot.getId());
+        verify(lotRepository).findByIdWithItems(lot.getId());
         verify(lotRepository, never()).save(any());
         verifyNoMoreInteractions(lotRepository);
         verifyNoInteractions(statusChanger);
@@ -212,11 +283,11 @@ class LotServiceImplTest {
     @Test
     void update_unknownLot_throwsLotNotFound() {
         UUID id = UUID.randomUUID();
-        given(lotRepository.findById(id)).willReturn(Optional.empty());
+        given(lotRepository.findByIdWithItems(id)).willReturn(Optional.empty());
 
         assertThrows(LotNotFoundException.class, () -> service.update(id, validRequest()));
 
-        verify(lotRepository).findById(id);
+        verify(lotRepository).findByIdWithItems(id);
         verifyNoMoreInteractions(lotRepository);
         verifyNoInteractions(statusChanger);
     }
@@ -224,15 +295,55 @@ class LotServiceImplTest {
     @Test
     void update_invalidPickupWindow_throwsAndDoesNotSave() {
         FoodLot lot = lot(LotStatus.DRAFT);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
+        given(lotRepository.findByIdWithItems(lot.getId())).willReturn(Optional.of(lot));
         Instant from = NOW.plus(2, ChronoUnit.HOURS);
 
         assertThrows(InvalidPickupWindowException.class,
                 () -> service.update(lot.getId(), request(FoodCategory.BAKERY, from, from.plus(10, ChronoUnit.MINUTES))));
 
         assertEquals("Старий заголовок", lot.getTitle());
-        verify(lotRepository).findById(lot.getId());
+        verify(lotRepository).findByIdWithItems(lot.getId());
         verify(lotRepository, never()).save(any());
+        verifyNoMoreInteractions(lotRepository);
+        verifyNoInteractions(statusChanger);
+    }
+
+    @Test
+    void delete_draftLot_deletesIt() {
+        FoodLot lot = lot(LotStatus.DRAFT);
+        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
+
+        service.delete(lot.getId());
+
+        verify(lotRepository).findById(lot.getId());
+        verify(lotRepository).delete(lot);
+        verifyNoMoreInteractions(lotRepository);
+        verifyNoInteractions(statusChanger);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"PENDING_MODERATION", "PUBLISHED", "RESERVED", "CANCELLED", "CONFIRMED"})
+    void delete_lotNotDraft_throwsLotNotDraftAndDoesNotDelete(LotStatus status) {
+        FoodLot lot = lot(status);
+        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
+
+        assertThrows(LotNotDraftException.class, () -> service.delete(lot.getId()));
+
+        verify(lotRepository).findById(lot.getId());
+        verify(lotRepository, never()).delete(any());
+        verifyNoMoreInteractions(lotRepository);
+        verifyNoInteractions(statusChanger);
+    }
+
+    @Test
+    void delete_unknownLot_throwsLotNotFound() {
+        UUID id = UUID.randomUUID();
+        given(lotRepository.findById(id)).willReturn(Optional.empty());
+
+        assertThrows(LotNotFoundException.class, () -> service.delete(id));
+
+        verify(lotRepository).findById(id);
+        verify(lotRepository, never()).delete(any());
         verifyNoMoreInteractions(lotRepository);
         verifyNoInteractions(statusChanger);
     }
@@ -240,16 +351,15 @@ class LotServiceImplTest {
     @Test
     void publish_regularDonor_publishesAndSetsPublishedAt() {
         FoodLot lot = lot(LotStatus.DRAFT);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
-        given(lotRepository.findAll()).willReturn(List.of(lot));
-        given(lotRepository.save(lot)).willReturn(lot);
+        givenLotWithItems(lot);
+        given(lotRepository.countByDonorOrgId(DONOR)).willReturn(1L);
 
-        FoodLot published = service.publish(lot.getId());
+        LotResponse published = service.publish(lot.getId());
 
-        assertEquals(NOW, published.getPublishedAt());
+        assertEquals(NOW, published.publishedAt());
         verify(statusChanger).transition(lot, LotStatus.PUBLISHED, "Публікація лоту");
-        verify(lotRepository).findById(lot.getId());
-        verify(lotRepository).findAll();
+        verify(lotRepository).findByIdWithItems(lot.getId());
+        verify(lotRepository).countByDonorOrgId(DONOR);
         verify(lotRepository).save(lot);
         verifyNoMoreInteractions(lotRepository, statusChanger);
     }
@@ -257,16 +367,17 @@ class LotServiceImplTest {
     @Test
     void publish_donorWithMoreThan20PercentCancelled_goesToModeration() {
         FoodLot lot = lot(LotStatus.DRAFT);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
-        given(lotRepository.findAll()).willReturn(donorLots(lot, 4, 2));
-        given(lotRepository.save(lot)).willReturn(lot);
+        givenLotWithItems(lot);
+        given(lotRepository.countByDonorOrgId(DONOR)).willReturn(5L);
+        given(lotRepository.countByDonorOrgIdAndStatus(DONOR, LotStatus.CANCELLED)).willReturn(2L);
 
-        FoodLot result = service.publish(lot.getId());
+        LotResponse result = service.publish(lot.getId());
 
-        assertNull(result.getPublishedAt());
+        assertNull(result.publishedAt());
         verify(statusChanger).transition(lot, LotStatus.PENDING_MODERATION, "Публікація лоту");
-        verify(lotRepository).findById(lot.getId());
-        verify(lotRepository).findAll();
+        verify(lotRepository).findByIdWithItems(lot.getId());
+        verify(lotRepository).countByDonorOrgId(DONOR);
+        verify(lotRepository).countByDonorOrgIdAndStatus(DONOR, LotStatus.CANCELLED);
         verify(lotRepository).save(lot);
         verifyNoMoreInteractions(lotRepository, statusChanger);
     }
@@ -274,16 +385,17 @@ class LotServiceImplTest {
     @Test
     void publish_donorWithExactly20PercentCancelled_isPublished() {
         FoodLot lot = lot(LotStatus.DRAFT);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
-        given(lotRepository.findAll()).willReturn(donorLots(lot, 4, 1));
-        given(lotRepository.save(lot)).willReturn(lot);
+        givenLotWithItems(lot);
+        given(lotRepository.countByDonorOrgId(DONOR)).willReturn(5L);
+        given(lotRepository.countByDonorOrgIdAndStatus(DONOR, LotStatus.CANCELLED)).willReturn(1L);
 
-        FoodLot result = service.publish(lot.getId());
+        LotResponse result = service.publish(lot.getId());
 
-        assertEquals(NOW, result.getPublishedAt());
+        assertEquals(NOW, result.publishedAt());
         verify(statusChanger).transition(lot, LotStatus.PUBLISHED, "Публікація лоту");
-        verify(lotRepository).findById(lot.getId());
-        verify(lotRepository).findAll();
+        verify(lotRepository).findByIdWithItems(lot.getId());
+        verify(lotRepository).countByDonorOrgId(DONOR);
+        verify(lotRepository).countByDonorOrgIdAndStatus(DONOR, LotStatus.CANCELLED);
         verify(lotRepository).save(lot);
         verifyNoMoreInteractions(lotRepository, statusChanger);
     }
@@ -291,36 +403,16 @@ class LotServiceImplTest {
     @Test
     void publish_donorWithFewerThanFiveLots_ignoresCancellations() {
         FoodLot lot = lot(LotStatus.DRAFT);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
-        given(lotRepository.findAll()).willReturn(donorLots(lot, 3, 3));
-        given(lotRepository.save(lot)).willReturn(lot);
+        givenLotWithItems(lot);
+        given(lotRepository.countByDonorOrgId(DONOR)).willReturn(4L);
 
-        FoodLot result = service.publish(lot.getId());
+        LotResponse result = service.publish(lot.getId());
 
-        assertEquals(NOW, result.getPublishedAt());
+        assertEquals(NOW, result.publishedAt());
         verify(statusChanger).transition(lot, LotStatus.PUBLISHED, "Публікація лоту");
-        verify(lotRepository).findById(lot.getId());
-        verify(lotRepository).findAll();
-        verify(lotRepository).save(lot);
-        verifyNoMoreInteractions(lotRepository, statusChanger);
-    }
-
-    @Test
-    void publish_countsOnlyLotsOfSameDonor() {
-        FoodLot lot = lot(LotStatus.DRAFT);
-        List<FoodLot> lots = donorLots(lot, 4, 1);
-        lots.add(otherLot(OTHER_DONOR, FoodCategory.BAKERY, LotStatus.CANCELLED));
-        lots.add(otherLot(OTHER_DONOR, FoodCategory.BAKERY, LotStatus.CANCELLED));
-        lots.add(otherLot(OTHER_DONOR, FoodCategory.BAKERY, LotStatus.CANCELLED));
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
-        given(lotRepository.findAll()).willReturn(lots);
-        given(lotRepository.save(lot)).willReturn(lot);
-
-        service.publish(lot.getId());
-
-        verify(statusChanger).transition(lot, LotStatus.PUBLISHED, "Публікація лоту");
-        verify(lotRepository).findById(lot.getId());
-        verify(lotRepository).findAll();
+        verify(lotRepository).findByIdWithItems(lot.getId());
+        verify(lotRepository).countByDonorOrgId(DONOR);
+        verify(lotRepository, never()).countByDonorOrgIdAndStatus(any(), any());
         verify(lotRepository).save(lot);
         verifyNoMoreInteractions(lotRepository, statusChanger);
     }
@@ -328,16 +420,16 @@ class LotServiceImplTest {
     @Test
     void publish_invalidTransition_doesNotSave() {
         FoodLot lot = lot(LotStatus.PUBLISHED);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
-        given(lotRepository.findAll()).willReturn(List.of(lot));
+        given(lotRepository.findByIdWithItems(lot.getId())).willReturn(Optional.of(lot));
+        given(lotRepository.countByDonorOrgId(DONOR)).willReturn(1L);
         doThrow(new InvalidLotStateException("перехід заборонено"))
                 .when(statusChanger).transition(lot, LotStatus.PUBLISHED, "Публікація лоту");
 
         assertThrows(InvalidLotStateException.class, () -> service.publish(lot.getId()));
 
         assertNull(lot.getPublishedAt());
-        verify(lotRepository).findById(lot.getId());
-        verify(lotRepository).findAll();
+        verify(lotRepository).findByIdWithItems(lot.getId());
+        verify(lotRepository).countByDonorOrgId(DONOR);
         verify(lotRepository, never()).save(any());
         verify(statusChanger).transition(lot, LotStatus.PUBLISHED, "Публікація лоту");
         verifyNoMoreInteractions(lotRepository, statusChanger);
@@ -346,11 +438,11 @@ class LotServiceImplTest {
     @Test
     void publish_unknownLot_throwsLotNotFound() {
         UUID id = UUID.randomUUID();
-        given(lotRepository.findById(id)).willReturn(Optional.empty());
+        given(lotRepository.findByIdWithItems(id)).willReturn(Optional.empty());
 
         assertThrows(LotNotFoundException.class, () -> service.publish(id));
 
-        verify(lotRepository).findById(id);
+        verify(lotRepository).findByIdWithItems(id);
         verifyNoMoreInteractions(lotRepository);
         verifyNoInteractions(statusChanger);
     }
@@ -358,14 +450,13 @@ class LotServiceImplTest {
     @Test
     void cancel_allowedState_transitionsAndSaves() {
         FoodLot lot = lot(LotStatus.PUBLISHED);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
-        given(lotRepository.save(lot)).willReturn(lot);
+        givenLotWithItems(lot);
 
-        FoodLot cancelled = service.cancel(lot.getId());
+        LotResponse cancelled = service.cancel(lot.getId());
 
-        assertSame(lot, cancelled);
+        assertEquals(lot.getId(), cancelled.id());
         verify(statusChanger).transition(lot, LotStatus.CANCELLED, "Скасовано донором");
-        verify(lotRepository).findById(lot.getId());
+        verify(lotRepository).findByIdWithItems(lot.getId());
         verify(lotRepository).save(lot);
         verifyNoMoreInteractions(lotRepository, statusChanger);
     }
@@ -373,13 +464,13 @@ class LotServiceImplTest {
     @Test
     void cancel_reservedLot_invalidTransition_doesNotSave() {
         FoodLot lot = lot(LotStatus.RESERVED);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
+        given(lotRepository.findByIdWithItems(lot.getId())).willReturn(Optional.of(lot));
         doThrow(new InvalidLotStateException("перехід заборонено"))
                 .when(statusChanger).transition(lot, LotStatus.CANCELLED, "Скасовано донором");
 
         assertThrows(InvalidLotStateException.class, () -> service.cancel(lot.getId()));
 
-        verify(lotRepository).findById(lot.getId());
+        verify(lotRepository).findByIdWithItems(lot.getId());
         verify(lotRepository, never()).save(any());
         verify(statusChanger).transition(lot, LotStatus.CANCELLED, "Скасовано донором");
         verifyNoMoreInteractions(lotRepository, statusChanger);
@@ -388,11 +479,11 @@ class LotServiceImplTest {
     @Test
     void cancel_unknownLot_throwsLotNotFound() {
         UUID id = UUID.randomUUID();
-        given(lotRepository.findById(id)).willReturn(Optional.empty());
+        given(lotRepository.findByIdWithItems(id)).willReturn(Optional.empty());
 
         assertThrows(LotNotFoundException.class, () -> service.cancel(id));
 
-        verify(lotRepository).findById(id);
+        verify(lotRepository).findByIdWithItems(id);
         verifyNoMoreInteractions(lotRepository);
         verifyNoInteractions(statusChanger);
     }
@@ -400,14 +491,13 @@ class LotServiceImplTest {
     @Test
     void approve_approved_publishesWithPublishedAt() {
         FoodLot lot = lot(LotStatus.PENDING_MODERATION);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
-        given(lotRepository.save(lot)).willReturn(lot);
+        givenLotWithItems(lot);
 
-        FoodLot result = service.approve(lot.getId(), new ApprovalRequest(true, "Все добре"));
+        LotResponse result = service.approve(lot.getId(), new ApprovalRequest(true, "Все добре"));
 
-        assertEquals(NOW, result.getPublishedAt());
+        assertEquals(NOW, result.publishedAt());
         verify(statusChanger).transition(lot, LotStatus.PUBLISHED, "Все добре");
-        verify(lotRepository).findById(lot.getId());
+        verify(lotRepository).findByIdWithItems(lot.getId());
         verify(lotRepository).save(lot);
         verifyNoMoreInteractions(lotRepository, statusChanger);
     }
@@ -415,14 +505,13 @@ class LotServiceImplTest {
     @Test
     void approve_rejected_returnsToDraftWithoutPublishedAt() {
         FoodLot lot = lot(LotStatus.PENDING_MODERATION);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
-        given(lotRepository.save(lot)).willReturn(lot);
+        givenLotWithItems(lot);
 
-        FoodLot result = service.approve(lot.getId(), new ApprovalRequest(false, "Немає фото"));
+        LotResponse result = service.approve(lot.getId(), new ApprovalRequest(false, "Немає фото"));
 
-        assertNull(result.getPublishedAt());
+        assertNull(result.publishedAt());
         verify(statusChanger).transition(lot, LotStatus.DRAFT, "Немає фото");
-        verify(lotRepository).findById(lot.getId());
+        verify(lotRepository).findByIdWithItems(lot.getId());
         verify(lotRepository).save(lot);
         verifyNoMoreInteractions(lotRepository, statusChanger);
     }
@@ -430,13 +519,12 @@ class LotServiceImplTest {
     @Test
     void approve_withoutComment_usesDefaultComment() {
         FoodLot lot = lot(LotStatus.PENDING_MODERATION);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
-        given(lotRepository.save(lot)).willReturn(lot);
+        givenLotWithItems(lot);
 
         service.approve(lot.getId(), new ApprovalRequest(true, null));
 
         verify(statusChanger).transition(lot, LotStatus.PUBLISHED, "Рішення модератора");
-        verify(lotRepository).findById(lot.getId());
+        verify(lotRepository).findByIdWithItems(lot.getId());
         verify(lotRepository).save(lot);
         verifyNoMoreInteractions(lotRepository, statusChanger);
     }
@@ -444,7 +532,7 @@ class LotServiceImplTest {
     @Test
     void approve_invalidTransition_doesNotSave() {
         FoodLot lot = lot(LotStatus.CANCELLED);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
+        given(lotRepository.findByIdWithItems(lot.getId())).willReturn(Optional.of(lot));
         doThrow(new InvalidLotStateException("перехід заборонено"))
                 .when(statusChanger).transition(lot, LotStatus.PUBLISHED, "Ок");
 
@@ -452,7 +540,7 @@ class LotServiceImplTest {
                 () -> service.approve(lot.getId(), new ApprovalRequest(true, "Ок")));
 
         assertNull(lot.getPublishedAt());
-        verify(lotRepository).findById(lot.getId());
+        verify(lotRepository).findByIdWithItems(lot.getId());
         verify(lotRepository, never()).save(any());
         verify(statusChanger).transition(lot, LotStatus.PUBLISHED, "Ок");
         verifyNoMoreInteractions(lotRepository, statusChanger);
@@ -461,56 +549,11 @@ class LotServiceImplTest {
     @Test
     void approve_unknownLot_throwsLotNotFound() {
         UUID id = UUID.randomUUID();
-        given(lotRepository.findById(id)).willReturn(Optional.empty());
+        given(lotRepository.findByIdWithItems(id)).willReturn(Optional.empty());
 
         assertThrows(LotNotFoundException.class, () -> service.approve(id, new ApprovalRequest(true, null)));
 
-        verify(lotRepository).findById(id);
-        verifyNoMoreInteractions(lotRepository);
-        verifyNoInteractions(statusChanger);
-    }
-
-    @Test
-    void getById_existingLot_returnsIt() {
-        FoodLot lot = lot(LotStatus.DRAFT);
-        given(lotRepository.findById(lot.getId())).willReturn(Optional.of(lot));
-
-        assertSame(lot, service.getById(lot.getId()));
-
-        verify(lotRepository).findById(lot.getId());
-        verifyNoMoreInteractions(lotRepository);
-        verifyNoInteractions(statusChanger);
-    }
-
-    @Test
-    void getById_unknownLot_throwsLotNotFound() {
-        UUID id = UUID.randomUUID();
-        given(lotRepository.findById(id)).willReturn(Optional.empty());
-
-        assertThrows(LotNotFoundException.class, () -> service.getById(id));
-
-        verify(lotRepository).findById(id);
-        verifyNoMoreInteractions(lotRepository);
-        verifyNoInteractions(statusChanger);
-    }
-
-    @Test
-    void findAll_filtersByStatusCategoryAndDonor() {
-        FoodLot draftBakery = otherLot(DONOR, FoodCategory.BAKERY, LotStatus.DRAFT);
-        FoodLot publishedBakery = otherLot(DONOR, FoodCategory.BAKERY, LotStatus.PUBLISHED);
-        FoodLot publishedGrocery = otherLot(DONOR, FoodCategory.GROCERY, LotStatus.PUBLISHED);
-        FoodLot otherDonorPublishedBakery = otherLot(OTHER_DONOR, FoodCategory.BAKERY, LotStatus.PUBLISHED);
-        given(lotRepository.findAll())
-                .willReturn(List.of(draftBakery, publishedBakery, publishedGrocery, otherDonorPublishedBakery));
-
-        assertEquals(4, service.findAll(null, null, null).size());
-        assertEquals(List.of(draftBakery), service.findAll(LotStatus.DRAFT, null, null));
-        assertEquals(List.of(publishedGrocery), service.findAll(null, FoodCategory.GROCERY, null));
-        assertEquals(List.of(otherDonorPublishedBakery), service.findAll(null, null, OTHER_DONOR));
-        assertEquals(List.of(publishedBakery),
-                service.findAll(LotStatus.PUBLISHED, FoodCategory.BAKERY, DONOR));
-
-        verify(lotRepository, times(5)).findAll();
+        verify(lotRepository).findByIdWithItems(id);
         verifyNoMoreInteractions(lotRepository);
         verifyNoInteractions(statusChanger);
     }

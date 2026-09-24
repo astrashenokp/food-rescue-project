@@ -5,9 +5,11 @@ import com.example.foodrescue.common.FoodItem;
 import com.example.foodrescue.common.FoodLot;
 import com.example.foodrescue.common.LotNotFoundException;
 import com.example.foodrescue.common.LotRepository;
+import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.LotStatusChanger;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -39,7 +41,8 @@ public class LotServiceImpl implements LotService {
     }
 
     @Override
-    public FoodLot create(LotRequest request) {
+    @Transactional
+    public LotResponse create(LotRequest request) {
         Instant now = Instant.now(clock);
         validatePickupWindow(request, now);
 
@@ -47,37 +50,55 @@ public class LotServiceImpl implements LotService {
         applyRequest(lot, request);
         lot.setCreatedAt(now);
         lot.setStatus(LotStatus.DRAFT);
-        return lotRepository.save(lot);
+        return LotResponse.from(lotRepository.save(lot));
     }
 
     @Override
-    public List<FoodLot> findAll(LotStatus status, FoodCategory category, UUID donorOrgId) {
-        return lotRepository.findAll().stream()
-                .filter(lot -> status == null || lot.getStatus() == status)
+    @Transactional(readOnly = true)
+    public List<LotResponse> findAll(LotStatus status, FoodCategory category, UUID donorOrgId) {
+        List<FoodLot> lots = status == null
+                ? lotRepository.findAllWithItems()
+                : lotRepository.findAllByStatusWithItems(status);
+
+        return lots.stream()
                 .filter(lot -> category == null || lot.getCategory() == category)
                 .filter(lot -> donorOrgId == null || donorOrgId.equals(lot.getDonorOrgId()))
+                .map(LotResponse::from)
                 .toList();
     }
 
     @Override
-    public FoodLot getById(UUID id) {
-        return lotRepository.findById(id).orElseThrow(() -> new LotNotFoundException(id));
+    @Transactional(readOnly = true)
+    public LotResponse getById(UUID id) {
+        return LotResponse.from(findWithItems(id));
     }
 
     @Override
-    public FoodLot update(UUID id, LotRequest request) {
-        FoodLot lot = lotRepository.findById(id).orElseThrow(() -> new LotNotFoundException(id));
+    @Transactional
+    public LotResponse update(UUID id, LotRequest request) {
+        FoodLot lot = findWithItems(id);
         if (lot.getStatus() != LotStatus.DRAFT) {
             throw new LotNotDraftException(id);
         }
         validatePickupWindow(request, Instant.now(clock));
         applyRequest(lot, request);
-        return lotRepository.save(lot);
+        return LotResponse.from(lotRepository.save(lot));
     }
 
     @Override
-    public FoodLot publish(UUID id) {
+    @Transactional
+    public void delete(UUID id) {
         FoodLot lot = lotRepository.findById(id).orElseThrow(() -> new LotNotFoundException(id));
+        if (lot.getStatus() != LotStatus.DRAFT) {
+            throw new LotNotDraftException(id);
+        }
+        lotRepository.delete(lot);
+    }
+
+    @Override
+    @Transactional
+    public LotResponse publish(UUID id) {
+        FoodLot lot = findWithItems(id);
         LotStatus target = shouldSendToModeration(lot.getDonorOrgId())
                 ? LotStatus.PENDING_MODERATION
                 : LotStatus.PUBLISHED;
@@ -87,19 +108,21 @@ public class LotServiceImpl implements LotService {
         if (target == LotStatus.PUBLISHED) {
             lot.setPublishedAt(Instant.now(clock));
         }
-        return lotRepository.save(lot);
+        return LotResponse.from(lotRepository.save(lot));
     }
 
     @Override
-    public FoodLot cancel(UUID id) {
-        FoodLot lot = lotRepository.findById(id).orElseThrow(() -> new LotNotFoundException(id));
+    @Transactional
+    public LotResponse cancel(UUID id) {
+        FoodLot lot = findWithItems(id);
         statusChanger.transition(lot, LotStatus.CANCELLED, "Скасовано донором");
-        return lotRepository.save(lot);
+        return LotResponse.from(lotRepository.save(lot));
     }
 
     @Override
-    public FoodLot approve(UUID id, ApprovalRequest request) {
-        FoodLot lot = lotRepository.findById(id).orElseThrow(() -> new LotNotFoundException(id));
+    @Transactional
+    public LotResponse approve(UUID id, ApprovalRequest request) {
+        FoodLot lot = findWithItems(id);
         LotStatus target = Boolean.TRUE.equals(request.approved()) ? LotStatus.PUBLISHED : LotStatus.DRAFT;
         String comment = request.comment() != null ? request.comment() : "Рішення модератора";
 
@@ -108,7 +131,11 @@ public class LotServiceImpl implements LotService {
         if (target == LotStatus.PUBLISHED) {
             lot.setPublishedAt(Instant.now(clock));
         }
-        return lotRepository.save(lot);
+        return LotResponse.from(lotRepository.save(lot));
+    }
+
+    private FoodLot findWithItems(UUID id) {
+        return lotRepository.findByIdWithItems(id).orElseThrow(() -> new LotNotFoundException(id));
     }
 
     private void validatePickupWindow(LotRequest request, Instant now) {
@@ -149,18 +176,12 @@ public class LotServiceImpl implements LotService {
     }
 
     private boolean shouldSendToModeration(UUID donorOrgId) {
-        List<FoodLot> donorLots = lotRepository.findAll().stream()
-                .filter(lot -> donorOrgId.equals(lot.getDonorOrgId()))
-                .toList();
-
-        if (donorLots.size() < MIN_DONOR_LOTS_FOR_MODERATION_CHECK) {
+        long totalLots = lotRepository.countByDonorOrgId(donorOrgId);
+        if (totalLots < MIN_DONOR_LOTS_FOR_MODERATION_CHECK) {
             return false;
         }
 
-        long cancelledCount = donorLots.stream()
-                .filter(lot -> lot.getStatus() == LotStatus.CANCELLED)
-                .count();
-
-        return cancelledCount * 100 > (long) donorLots.size() * CANCELLATION_THRESHOLD_PERCENT;
+        long cancelledLots = lotRepository.countByDonorOrgIdAndStatus(donorOrgId, LotStatus.CANCELLED);
+        return cancelledLots * 100 > totalLots * CANCELLATION_THRESHOLD_PERCENT;
     }
 }
