@@ -55,7 +55,8 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     @Override
-    public DestinationPoint createDestinationPoint(DestinationPointRequest request) {
+    @Transactional
+    public DestinationPointResponse createDestinationPoint(DestinationPointRequest request) {
         if (destinationPointRepository.existsByName(request.name())) {
             throw new DuplicateDestinationPointException(request.name());
         }
@@ -68,16 +69,76 @@ public class DeliveryServiceImpl implements DeliveryService {
                 request.workingHours(),
                 request.acceptedCategories());
 
-        return destinationPointRepository.save(point);
+        return DestinationPointResponse.from(destinationPointRepository.save(point));
     }
 
     @Override
-    public DestinationPoint getDestinationPoint(UUID id) {
-        return destinationPointRepository.findById(id)
+    @Transactional(readOnly = true)
+    public List<DestinationPointResponse> getDestinationPoints() {
+        return destinationPointRepository.findAllWithCategories().stream()
+                .map(DestinationPointResponse::from)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DestinationPointResponse getDestinationPoint(UUID id) {
+        DestinationPoint point = destinationPointRepository.findByIdWithCategories(id)
                 .orElseThrow(() -> new DestinationPointNotFoundException(id));
+        return DestinationPointResponse.from(point);
     }
 
     @Override
+    @Transactional
+    public DestinationPointResponse updateDestinationPoint(UUID id, DestinationPointRequest request) {
+        DestinationPoint point = destinationPointRepository.findByIdWithCategories(id)
+                .orElseThrow(() -> new DestinationPointNotFoundException(id));
+
+        if (destinationPointRepository.existsByNameAndIdNot(request.name(), id)) {
+            throw new DuplicateDestinationPointException(request.name());
+        }
+
+        point.setOrganizationId(request.organizationId());
+        point.setName(request.name());
+        point.setAddress(request.address());
+        point.setWorkingHours(request.workingHours());
+        point.getAcceptedCategories().clear();
+        point.getAcceptedCategories().addAll(request.acceptedCategories());
+
+        return DestinationPointResponse.from(destinationPointRepository.save(point));
+    }
+
+    @Override
+    @Transactional
+    public void deleteDestinationPoint(UUID id) {
+        DestinationPoint point = destinationPointRepository.findById(id)
+                .orElseThrow(() -> new DestinationPointNotFoundException(id));
+
+        if (deliveryRepository.existsByDestinationPointId(id)) {
+            throw new DestinationPointInUseException(id);
+        }
+
+        destinationPointRepository.delete(point);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DeliveryResponse> getDeliveries() {
+        return deliveryRepository.findAllWithLotAndPoint().stream()
+                .map(DeliveryResponse::from)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DeliveryResponse getDelivery(UUID id) {
+        Delivery delivery = deliveryRepository.findByIdWithLotAndPoint(id)
+                .orElseThrow(() -> new DeliveryNotFoundException(id));
+        return DeliveryResponse.from(delivery);
+    }
+
+    @Override
+    @Transactional
     public DeliveryResponse pickup(UUID lotId, PickupRequest request) {
         FoodLot lot = lotRepository.findById(lotId)
                 .orElseThrow(() -> new LotNotFoundException(lotId));
@@ -87,66 +148,53 @@ public class DeliveryServiceImpl implements DeliveryService {
         statusChanger.transition(lot, LotStatus.PICKED_UP, "Лот передано волонтеру");
 
         Delivery delivery = new Delivery(
-                lotId,
+                UUID.randomUUID(),
+                lot,
                 lot.getReservedByVolunteerId(),
-                null,
                 now,
                 request.actualWeightKg(),
-                latePickup,
-                null,
-                null,
-                null,
-                null);
+                latePickup);
 
         deliveryRepository.save(delivery);
         lotRepository.save(lot);
 
-        return toResponse(delivery, lot.getStatus());
+        return DeliveryResponse.from(delivery);
     }
 
     @Override
+    @Transactional
     public DeliveryResponse deliver(UUID lotId, DeliveryRequest request) {
-        FoodLot lot = lotRepository.findById(lotId)
-                .orElseThrow(() -> new LotNotFoundException(lotId));
-        DestinationPoint point = destinationPointRepository.findById(request.destinationPointId())
+        Delivery delivery = deliveryRepository.findByLotIdWithLot(lotId)
+                .orElseThrow(() -> new DeliveryNotFoundException(lotId));
+        FoodLot lot = delivery.getLot();
+
+        DestinationPoint point = destinationPointRepository.findByIdWithCategories(request.destinationPointId())
                 .orElseThrow(() -> new DestinationPointNotFoundException(request.destinationPointId()));
 
         if (!point.getAcceptedCategories().contains(lot.getCategory())) {
             throw new CategoryNotAcceptedException(point.getId(), lot.getCategory());
         }
 
-        Delivery current = deliveryRepository.findByLotId(lotId)
-                .orElseThrow(() -> new DeliveryNotFoundException(lotId));
-
         statusChanger.transition(lot, LotStatus.DELIVERED, "Доставлено до пункту призначення");
 
-        Delivery updated = new Delivery(
-                current.lotId(),
-                current.volunteerId(),
-                point.getId(),
-                current.pickedUpAt(),
-                current.pickupWeightKg(),
-                current.latePickup(),
-                Instant.now(clock),
-                generateConfirmationCode(),
-                null,
-                null);
+        delivery.setDestinationPoint(point);
+        delivery.setDeliveredAt(Instant.now(clock));
+        delivery.setConfirmationCode(generateConfirmationCode());
 
-        deliveryRepository.save(updated);
+        deliveryRepository.save(delivery);
         lotRepository.save(lot);
 
-        return toResponse(updated, lot.getStatus());
+        return DeliveryResponse.from(delivery);
     }
 
     @Override
     @Transactional
     public DeliveryResponse confirm(UUID lotId, ConfirmationRequest request) {
-        FoodLot lot = lotRepository.findById(lotId)
-                .orElseThrow(() -> new LotNotFoundException(lotId));
-        Delivery current = deliveryRepository.findByLotId(lotId)
+        Delivery delivery = deliveryRepository.findByLotIdWithLot(lotId)
                 .orElseThrow(() -> new DeliveryNotFoundException(lotId));
+        FoodLot lot = delivery.getLot();
 
-        if (!request.confirmationCode().equals(current.confirmationCode())) {
+        if (!request.confirmationCode().equals(delivery.getConfirmationCode())) {
             throw new InvalidConfirmationCodeException();
         }
 
@@ -156,7 +204,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         }
 
         LotStatus nextStatus = hasWeightDifference(
-                current.pickupWeightKg(),
+                delivery.getPickupWeightKg(),
                 request.receivedWeightKg(),
                 strategy.tolerancePercent())
                 ? LotStatus.DISPUTED
@@ -169,22 +217,13 @@ public class DeliveryServiceImpl implements DeliveryService {
                         ? "Отримання підтверджено"
                         : "Виявлено розбіжність у вазі");
 
-        Delivery updated = new Delivery(
-                current.lotId(),
-                current.volunteerId(),
-                current.destinationPointId(),
-                current.pickedUpAt(),
-                current.pickupWeightKg(),
-                current.latePickup(),
-                current.deliveredAt(),
-                current.confirmationCode(),
-                Instant.now(clock),
-                request.receivedWeightKg());
+        delivery.setConfirmedAt(Instant.now(clock));
+        delivery.setReceivedWeightKg(request.receivedWeightKg());
 
-        deliveryRepository.save(updated);
+        deliveryRepository.save(delivery);
         lotRepository.save(lot);
 
-        DeliveryResponse response = toResponse(updated, lot.getStatus());
+        DeliveryResponse response = DeliveryResponse.from(delivery);
         DeliveryOutcome outcome = nextStatus == LotStatus.CONFIRMED
                 ? DeliveryOutcome.CONFIRMED
                 : DeliveryOutcome.DISPUTED;
@@ -192,14 +231,15 @@ public class DeliveryServiceImpl implements DeliveryService {
         eventPublisher.publishEvent(new DeliveryFinishedEvent(
                 lot.getId(),
                 lot.getDonorOrgId(),
-                updated.volunteerId(),
+                delivery.getVolunteerId(),
                 outcome,
-                updated.latePickup()));
+                delivery.isLatePickup()));
 
         return response;
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<StatusHistoryResponse> getHistory(UUID lotId) {
         lotRepository.findById(lotId)
                 .orElseThrow(() -> new LotNotFoundException(lotId));
@@ -207,20 +247,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         return historyRecorder.findByLot(lotId).stream()
                 .map(this::toHistoryResponse)
                 .toList();
-    }
-
-    private DeliveryResponse toResponse(Delivery delivery, LotStatus status) {
-        return new DeliveryResponse(
-                delivery.lotId(),
-                delivery.volunteerId(),
-                delivery.destinationPointId(),
-                status,
-                delivery.pickedUpAt(),
-                delivery.pickupWeightKg(),
-                delivery.deliveredAt(),
-                delivery.confirmationCode(),
-                delivery.confirmedAt(),
-                delivery.receivedWeightKg());
     }
 
     private StatusHistoryResponse toHistoryResponse(LotStatusHistory history) {

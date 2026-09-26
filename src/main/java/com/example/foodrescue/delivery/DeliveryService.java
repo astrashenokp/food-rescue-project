@@ -5,9 +5,19 @@ import java.util.UUID;
 
 public interface DeliveryService {
 
-    DestinationPoint createDestinationPoint(DestinationPointRequest request);
+    DestinationPointResponse createDestinationPoint(DestinationPointRequest request);
 
-    DestinationPoint getDestinationPoint(UUID id);
+    List<DestinationPointResponse> getDestinationPoints();
+
+    DestinationPointResponse getDestinationPoint(UUID id);
+
+    DestinationPointResponse updateDestinationPoint(UUID id, DestinationPointRequest request);
+
+    void deleteDestinationPoint(UUID id);
+
+    List<DeliveryResponse> getDeliveries();
+
+    DeliveryResponse getDelivery(UUID id);
 
     DeliveryResponse pickup(UUID lotId, PickupRequest request);
 

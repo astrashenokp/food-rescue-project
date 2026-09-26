@@ -17,4 +17,18 @@ public record DeliveryResponse(
         String confirmationCode,
         Instant confirmedAt,
         BigDecimal receivedWeightKg) {
+
+    public static DeliveryResponse from(Delivery delivery) {
+        return new DeliveryResponse(
+                delivery.getLot().getId(),
+                delivery.getVolunteerId(),
+                delivery.getDestinationPoint() == null ? null : delivery.getDestinationPoint().getId(),
+                delivery.getLot().getStatus(),
+                delivery.getPickedUpAt(),
+                delivery.getPickupWeightKg(),
+                delivery.getDeliveredAt(),
+                delivery.getConfirmationCode(),
+                delivery.getConfirmedAt(),
+                delivery.getReceivedWeightKg());
+    }
 }
