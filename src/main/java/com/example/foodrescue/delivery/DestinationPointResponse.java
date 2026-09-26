@@ -12,4 +12,14 @@ public record DestinationPointResponse(
         String address,
         String workingHours,
         Set<FoodCategory> acceptedCategories) {
+
+    public static DestinationPointResponse from(DestinationPoint point) {
+        return new DestinationPointResponse(
+                point.getId(),
+                point.getOrganizationId(),
+                point.getName(),
+                point.getAddress(),
+                point.getWorkingHours(),
+                Set.copyOf(point.getAcceptedCategories()));
+    }
 }
