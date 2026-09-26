@@ -182,7 +182,9 @@ SQL усіх запитів видно в журналі (`spring.jpa.show-sql=t
 | `GET /api/v1/lots?status=…` | `LotRepository.findAllByStatusWithItems(status)`: те саме з `WHERE l.status = :status` | один `select` з `left join food_items` |
 | `GET /api/v1/lots/{id}` | `LotRepository.findByIdWithItems(id)` | один `select` з `left join food_items` |
 | `GET /api/v1/lots/{lotId}/items` | `FoodItemRepository.findByLotId(lotId)`: позиції читаються напряму, лот не потрібен | один `select … from food_items where lot_id = ?` |
-| _Людини 2 і 3 додають свої ендпоінти_ | | |
+| `GET /api/v1/destination-points` | `DestinationPointRepository.findAllWithCategories()` | один `select` з `left join destination_point_categories` |
+| `GET /api/v1/deliveries` | `DeliveryRepository.findAllWithLotAndPoint()` | один `select` з `join food_lots` і `left join destination_points` |
+| _Людина 2 додає свій ендпоінт_ | | |
 
 Без `JOIN FETCH` список із 5 лотів по 2 позиції дав би 6 запитів (1 на лоти і по одному на позиції кожного лота). Це перевіряє тест `LotRepositoryTest.findAllWithItems_loadsLotsWithItemsInSingleQuery` через статистику Hibernate (`getPrepareStatementCount() == 1`).
 
@@ -215,7 +217,9 @@ _Розділ заповнює Людина 2._
 
 ### 8.6. Чому `Delivery.volunteerId` це `UUID`, а не зв'язок
 
-_Розділ заповнює Людина 3._
+`Delivery` належить модулю `delivery`, а профіль волонтера — модулю `volunteer`. Якби `Delivery` мав `@ManyToOne VolunteerProfile`, модуль `delivery` почав би залежати від `volunteer`, що створило б небажаний цикл залежностей між модулями. Тому `Delivery.volunteerId` лишається звичайним `UUID`.
+
+Водночас зв'язки, які не порушують межі модулів, зроблені як JPA-відношення: `Delivery.lot` — `@OneToOne(fetch = LAZY)`, а `Delivery.destinationPoint` — `@ManyToOne(fetch = LAZY)`. Для читання доставок використовуються `JOIN FETCH`-запити, щоб лот і пункт призначення завантажувались одним SQL-запитом.
 
 ### 8.7. Конкуренція: `@Version` і атомарні `UPDATE`
 

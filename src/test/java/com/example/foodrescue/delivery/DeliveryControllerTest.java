@@ -10,6 +10,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -17,7 +18,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -25,14 +29,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(DeliveryController.class)
 class DeliveryControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockitoBean
-    private DeliveryService deliveryService;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+    @MockitoBean private DeliveryService deliveryService;
 
     private DestinationPointRequest validRequest() {
         return new DestinationPointRequest(
@@ -43,38 +42,32 @@ class DeliveryControllerTest {
                 Set.of(FoodCategory.BAKERY));
     }
 
-    // 1. Валідний запит → правильний статус і виклик сервісу
-    @Test
-    void createDestinationPoint_validRequest_returnsCreated_andCallsService() throws Exception {
-        DestinationPointRequest request = validRequest();
-        DestinationPoint point = new DestinationPoint(
-                UUID.randomUUID(),
+    private DestinationPointResponse response(UUID id, DestinationPointRequest request) {
+        return new DestinationPointResponse(
+                id,
                 request.organizationId(),
                 request.name(),
                 request.address(),
                 request.workingHours(),
                 request.acceptedCategories());
+    }
 
-        given(deliveryService.createDestinationPoint(any())).willReturn(point);
+    @Test
+    void createDestinationPoint_validRequest_returnsCreated() throws Exception {
+        DestinationPointRequest request = validRequest();
+        UUID id = UUID.randomUUID();
+        given(deliveryService.createDestinationPoint(any())).willReturn(response(id, request));
 
         mockMvc.perform(post("/api/v1/destination-points")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(header().exists("Location"));
-
-        verify(deliveryService).createDestinationPoint(any());
+                .andExpect(header().string("Location", "/api/v1/destination-points/" + id));
     }
 
-    // 2. Невалідне тіло → 400, у відповіді errors
     @Test
     void createDestinationPoint_invalidBody_returnsBadRequestWithErrors() throws Exception {
-        DestinationPointRequest invalid = new DestinationPointRequest(
-                null,
-                "А",
-                "",
-                "9-18",
-                Set.of());
+        DestinationPointRequest invalid = new DestinationPointRequest(null, "А", "", "9-18", Set.of());
 
         mockMvc.perform(post("/api/v1/destination-points")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -83,22 +76,19 @@ class DeliveryControllerTest {
                 .andExpect(jsonPath("$.errors").exists());
     }
 
-    // 3. Сервіс кидає бізнес-виняток → правильний статус
     @Test
-    void deliver_serviceThrowsBusinessRule_returnsUnprocessableEntity() throws Exception {
-        UUID lotId = UUID.randomUUID();
-        DeliveryRequest request = new DeliveryRequest(UUID.randomUUID());
+    void updateDestinationPoint_businessException_returnsUnprocessableEntity() throws Exception {
+        UUID id = UUID.randomUUID();
+        DestinationPointRequest request = validRequest();
+        given(deliveryService.updateDestinationPoint(eq(id), any()))
+                .willThrow(new BusinessRuleException("Помилка правила"));
 
-        given(deliveryService.deliver(eq(lotId), any()))
-                .willThrow(new BusinessRuleException("Пункт призначення не приймає категорію лоту"));
-
-        mockMvc.perform(post("/api/v1/lots/" + lotId + "/delivery")
+        mockMvc.perform(put("/api/v1/destination-points/" + id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnprocessableEntity());
     }
 
-    // 4. Невідоме поле в JSON → 400
     @Test
     void createDestinationPoint_unknownJsonField_returnsBadRequest() throws Exception {
         String json = """
@@ -116,5 +106,26 @@ class DeliveryControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getDestinationPoints_returnsList() throws Exception {
+        DestinationPointRequest request = validRequest();
+        UUID id = UUID.randomUUID();
+        given(deliveryService.getDestinationPoints()).willReturn(List.of(response(id, request)));
+
+        mockMvc.perform(get("/api/v1/destination-points"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(id.toString()));
+    }
+
+    @Test
+    void deleteDestinationPoint_returnsNoContent() throws Exception {
+        UUID id = UUID.randomUUID();
+
+        mockMvc.perform(delete("/api/v1/destination-points/" + id))
+                .andExpect(status().isNoContent());
+
+        verify(deliveryService).deleteDestinationPoint(id);
     }
 }
