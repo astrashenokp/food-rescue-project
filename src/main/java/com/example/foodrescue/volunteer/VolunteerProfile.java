@@ -1,24 +1,78 @@
 package com.example.foodrescue.volunteer;
 
+import com.example.foodrescue.delivery.DestinationPoint;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
+@Entity
+@Table(name = "volunteers")
 public class VolunteerProfile {
+
+    @Id
     private UUID id;
+
+    @Version
+    private Long version;
+
+    @Column(nullable = false, length = 100)
     private String fullName;
+
+    @Column(nullable = false, unique = true)
     private String email;
+
+    @Column(nullable = false, length = 15)
     private String phone;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
     private TransportType transportType;
+
+    @Column(nullable = false, length = 100)
     private String activityZone;
+
+    @Column(nullable = false)
     private int completedDeliveries;
+
+    @Column(nullable = false)
     private int latePickups;
+
+    @Column(nullable = false)
     private int noShows;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "volunteer_points",
+            joinColumns = @JoinColumn(name = "volunteer_id"),
+            inverseJoinColumns = @JoinColumn(name = "point_id"))
+    private Set<DestinationPoint> preferredPoints = new HashSet<>();
+
+    protected VolunteerProfile() {
+    }
+
+    public VolunteerProfile(UUID id) {
+        this.id = id;
+    }
 
     public UUID getId() {
         return id;
     }
 
-    public void setId(UUID id) {
-        this.id = id;
+    public Long getVersion() {
+        return version;
     }
 
     public String getFullName() {
@@ -85,6 +139,9 @@ public class VolunteerProfile {
         this.noShows = noShows;
     }
 
+    public Set<DestinationPoint> getPreferredPoints() {
+        return preferredPoints;
+    }
     /**
      * Показник відповідальності: % успішних − 2 × запізнення − 10 × зриви.
      * % успішних = completed / (completed + noShows) × 100; без жодної доставки — 100.
@@ -120,5 +177,17 @@ public class VolunteerProfile {
         }
         int total = completedDeliveries + noShows;
         return total > 0 && (double) latePickups / total > 0.15;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof VolunteerProfile other)) return false;
+        return Objects.equals(id, other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
     }
 }

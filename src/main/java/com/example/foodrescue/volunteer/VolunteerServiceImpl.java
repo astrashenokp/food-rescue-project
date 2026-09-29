@@ -6,17 +6,22 @@ import com.example.foodrescue.common.LotRepository;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.LotStatusChanger;
 import com.example.foodrescue.delivery.DeliveryOutcome;
+import com.example.foodrescue.delivery.DestinationPoint;
+import com.example.foodrescue.delivery.DestinationPointRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 public class VolunteerServiceImpl implements VolunteerService {
 
     private static final int RESERVE_DURATION_MINUTES = 30;
@@ -24,49 +29,94 @@ public class VolunteerServiceImpl implements VolunteerService {
     private final VolunteerRepository volunteerRepository;
     private final LotRepository lotRepository;
     private final LotStatusChanger statusChanger;
+    private final DestinationPointRepository destinationPointRepository;
     private final Map<VolunteerTier, ReservationAccessStrategy> accessStrategies = new EnumMap<>(VolunteerTier.class);
     private final Clock clock;
 
     public VolunteerServiceImpl(VolunteerRepository volunteerRepository,
                                 LotRepository lotRepository,
                                 LotStatusChanger statusChanger,
+                                DestinationPointRepository destinationPointRepository,
                                 List<ReservationAccessStrategy> accessStrategies,
                                 Clock clock) {
         this.volunteerRepository = volunteerRepository;
         this.lotRepository = lotRepository;
         this.statusChanger = statusChanger;
+        this.destinationPointRepository = destinationPointRepository;
         accessStrategies.forEach(strategy -> this.accessStrategies.put(strategy.tier(), strategy));
         this.clock = clock;
     }
 
     @Override
-    public VolunteerProfile create(VolunteerRequest request) {
+    @Transactional
+    public VolunteerResponse create(VolunteerRequest request) {
         if (volunteerRepository.existsByEmail(request.email())) {
             throw new DuplicateVolunteerException(request.email());
         }
 
-        VolunteerProfile profile = new VolunteerProfile();
-        profile.setId(UUID.randomUUID());
+        VolunteerProfile profile = new VolunteerProfile(UUID.randomUUID());
         profile.setFullName(request.fullName());
         profile.setEmail(request.email());
         profile.setPhone(request.phone());
         profile.setTransportType(request.transportType());
         profile.setActivityZone(request.activityZone());
-        return volunteerRepository.save(profile);
+        return VolunteerResponse.from(volunteerRepository.save(profile));
     }
 
     @Override
-    public VolunteerProfile getById(UUID id) {
-        return volunteerRepository.findById(id)
+    public VolunteerResponse getById(UUID id) {
+        VolunteerProfile profile = volunteerRepository.findByIdWithPoints(id)
                 .orElseThrow(() -> new VolunteerNotFoundException(id));
+        return VolunteerResponse.from(profile);
+    }
+
+    @Override
+    public List<VolunteerResponse> getAll() {
+        return volunteerRepository.findAllWithPoints().stream()
+                .map(VolunteerResponse::from)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public VolunteerResponse update(UUID id, VolunteerRequest request) {
+        VolunteerProfile profile = volunteerRepository.findByIdWithPoints(id)
+                .orElseThrow(() -> new VolunteerNotFoundException(id));
+
+        if (volunteerRepository.existsByEmailAndIdNot(request.email(), id)) {
+            throw new DuplicateVolunteerException(request.email());
+        }
+
+        profile.setFullName(request.fullName());
+        profile.setEmail(request.email());
+        profile.setPhone(request.phone());
+        profile.setTransportType(request.transportType());
+        profile.setActivityZone(request.activityZone());
+        return VolunteerResponse.from(volunteerRepository.save(profile));
+    }
+
+    @Override
+    @Transactional
+    public void delete(UUID id) {
+        VolunteerProfile profile = volunteerRepository.findById(id)
+                .orElseThrow(() -> new VolunteerNotFoundException(id));
+
+        boolean hasActiveLots = lotRepository.existsByReservedByVolunteerIdAndStatusIn(
+                id, EnumSet.of(LotStatus.RESERVED, LotStatus.PICKED_UP));
+        if (hasActiveLots) {
+            throw new VolunteerHasActiveLotsException(id);
+        }
+
+        volunteerRepository.delete(profile);
     }
 
     /**
      * Резервування лоту за волонтером.
-     * synchronized — щоб два волонтери не взяли один лот одночасно.
+     * @Version на FoodLot дає оптимістичне блокування замість synchronized.
      */
     @Override
-    public synchronized FoodLot reserve(UUID lotId, ReservationRequest request) {
+    @Transactional
+    public FoodLot reserve(UUID lotId, ReservationRequest request) {
         FoodLot lot = lotRepository.findById(lotId)
                 .orElseThrow(() -> new LotNotFoundException(lotId));
         VolunteerProfile volunteer = volunteerRepository.findById(request.volunteerId())
@@ -95,6 +145,7 @@ public class VolunteerServiceImpl implements VolunteerService {
      * Скасування резервування: RESERVED → PUBLISHED, очищення полів резерву.
      */
     @Override
+    @Transactional
     public FoodLot cancelReservation(UUID lotId) {
         FoodLot lot = lotRepository.findById(lotId)
                 .orElseThrow(() -> new LotNotFoundException(lotId));
@@ -109,23 +160,61 @@ public class VolunteerServiceImpl implements VolunteerService {
     }
 
     /**
-     * Оновлює лічильники волонтера після завершення доставки.
-     * synchronized — викликається з іншого потоку слухачем.
+     * Оновлює лічильники волонтера атомарними UPDATE-запитами.
+     * Без synchronized, без read-modify-write — потокобезпечно.
      */
     @Override
-    public synchronized void recordOutcome(UUID volunteerId, DeliveryOutcome outcome, boolean latePickup) {
-        VolunteerProfile volunteer = volunteerRepository.findById(volunteerId)
-                .orElseThrow(() -> new VolunteerNotFoundException(volunteerId));
+    @Transactional
+    public void recordOutcome(UUID volunteerId, DeliveryOutcome outcome, boolean latePickup) {
+        if (!volunteerRepository.existsById(volunteerId)) {
+            throw new VolunteerNotFoundException(volunteerId);
+        }
 
         switch (outcome) {
-            case CONFIRMED -> volunteer.setCompletedDeliveries(volunteer.getCompletedDeliveries() + 1);
-            case DISPUTED -> volunteer.setNoShows(volunteer.getNoShows() + 1);
+            case CONFIRMED -> volunteerRepository.incrementCompleted(volunteerId);
+            case DISPUTED -> volunteerRepository.incrementNoShows(volunteerId);
         }
 
         if (latePickup) {
-            volunteer.setLatePickups(volunteer.getLatePickups() + 1);
+            volunteerRepository.incrementLatePickups(volunteerId);
+        }
+    }
+
+    @Override
+    @Transactional
+    public PreferredPointResponse addPreferredPoint(UUID volunteerId, UUID pointId) {
+        VolunteerProfile profile = volunteerRepository.findByIdWithPoints(volunteerId)
+                .orElseThrow(() -> new VolunteerNotFoundException(volunteerId));
+        DestinationPoint point = destinationPointRepository.findById(pointId)
+                .orElseThrow(() -> new com.example.foodrescue.common.NotFoundException(
+                        "Точку призначення " + pointId + " не знайдено"));
+
+        profile.getPreferredPoints().add(point);
+        volunteerRepository.save(profile);
+        return new PreferredPointResponse(point.getId(), point.getName());
+    }
+
+    @Override
+    @Transactional
+    public void removePreferredPoint(UUID volunteerId, UUID pointId) {
+        VolunteerProfile profile = volunteerRepository.findByIdWithPoints(volunteerId)
+                .orElseThrow(() -> new VolunteerNotFoundException(volunteerId));
+
+        boolean removed = profile.getPreferredPoints().removeIf(p -> p.getId().equals(pointId));
+        if (!removed) {
+            throw new com.example.foodrescue.common.NotFoundException(
+                    "Точку " + pointId + " не знайдено у бажаних точках волонтера " + volunteerId);
         }
 
-        volunteerRepository.save(volunteer);
+        volunteerRepository.save(profile);
+    }
+
+    @Override
+    public List<PreferredPointResponse> getPreferredPoints(UUID volunteerId) {
+        VolunteerProfile profile = volunteerRepository.findByIdWithPoints(volunteerId)
+                .orElseThrow(() -> new VolunteerNotFoundException(volunteerId));
+        return profile.getPreferredPoints().stream()
+                .map(p -> new PreferredPointResponse(p.getId(), p.getName()))
+                .toList();
     }
 }

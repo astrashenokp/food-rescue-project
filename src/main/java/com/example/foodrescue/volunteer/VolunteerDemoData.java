@@ -17,8 +17,7 @@ public class VolunteerDemoData implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        VolunteerProfile demo = new VolunteerProfile();
-        demo.setId(DemoData.DEMO_VOLUNTEER);
+        VolunteerProfile demo = new VolunteerProfile(DemoData.DEMO_VOLUNTEER);
         demo.setFullName("Демо Волонтер");
         demo.setEmail("demo@volunteer.ua");
         demo.setPhone("+380501234567");

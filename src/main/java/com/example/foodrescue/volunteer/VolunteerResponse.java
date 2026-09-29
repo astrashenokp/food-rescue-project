@@ -1,5 +1,6 @@
 package com.example.foodrescue.volunteer;
 
+import java.util.List;
 import java.util.UUID;
 
 public record VolunteerResponse(
@@ -13,10 +14,15 @@ public record VolunteerResponse(
         boolean restricted,
         int completedDeliveries,
         int latePickups,
-        int noShows
+        int noShows,
+        List<PreferredPointResponse> preferredPoints
 ) {
 
     public static VolunteerResponse from(VolunteerProfile profile) {
+        List<PreferredPointResponse> points = profile.getPreferredPoints().stream()
+                .map(p -> new PreferredPointResponse(p.getId(), p.getName()))
+                .toList();
+
         return new VolunteerResponse(
                 profile.getId(),
                 profile.getFullName(),
@@ -28,6 +34,7 @@ public record VolunteerResponse(
                 profile.isRestricted(),
                 profile.getCompletedDeliveries(),
                 profile.getLatePickups(),
-                profile.getNoShows());
+                profile.getNoShows(),
+                points);
     }
 }

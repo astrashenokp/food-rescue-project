@@ -95,6 +95,9 @@ HTTP-статуси помилок: **404** — не знайдено, **409** �
 | 2.4 | Обмежений волонтер (`RESTRICTED`) має доступ лише до категорій `BAKERY` та `GROCERY` (стратегія `ReservationAccessStrategy`) | `ReservationDeniedException` | 403 |
 | 2.5 | Великий лот (≥ 20 кг) перші 10 хвилин з моменту публікації доступний тільки волонтерам рівнів `TRUSTED` | `ReservationDeniedException` | 403 |
 | 2.6 | Скасування резервації дозволене лише для лота у стані `RESERVED`. Лот повертається в `PUBLISHED`, а поля резервації очищуються | `InvalidLotStateException` | 422 |
+| 2.7 | Оновлення волонтера (`PUT`): email має бути унікальним серед інших користувачів (`existsByEmailAndIdNot`) | `DuplicateVolunteerException` | 409 |
+| 2.8 | Видалення волонтера (`DELETE`): заборонене, якщо у волонтера є активні лоти зі статусом `RESERVED` або `PICKED_UP` | `VolunteerHasActiveLotsException` | 409 |
+| 2.9 | Бажані пункти призначення: додавання/видалення/перегляд прив'язки до `DestinationPoint`. Якщо волонтер або пункт не знайдено | `VolunteerNotFoundException`, `NotFoundException` | 404 |
 | | Лот не існує при спробі резервування | `LotNotFoundException` | 404 |
 
 ### 5.3. БК-3: передача, доставка, підтвердження (модуль `delivery`)
@@ -183,8 +186,8 @@ SQL усіх запитів видно в журналі (`spring.jpa.show-sql=t
 | `GET /api/v1/lots/{id}` | `LotRepository.findByIdWithItems(id)` | один `select` з `left join food_items` |
 | `GET /api/v1/lots/{lotId}/items` | `FoodItemRepository.findByLotId(lotId)`: позиції читаються напряму, лот не потрібен | один `select … from food_items where lot_id = ?` |
 | `GET /api/v1/destination-points` | `DestinationPointRepository.findAllWithCategories()` | один `select` з `left join destination_point_categories` |
-| `GET /api/v1/deliveries` | `DeliveryRepository.findAllWithLotAndPoint()` | один `select` з `join food_lots` і `left join destination_points` |
-| _Людина 2 додає свій ендпоінт_ | | |
+| `GET /api/v1/volunteers` | `VolunteerRepository.findAllWithPoints()`: `SELECT DISTINCT v FROM VolunteerProfile v LEFT JOIN FETCH v.preferredPoints ORDER BY v.fullName` | один `select` з `left join volunteer_points` і `destination_points` |
+| `GET /api/v1/volunteers/{id}` | `VolunteerRepository.findByIdWithPoints(id)`: `SELECT DISTINCT v FROM VolunteerProfile v LEFT JOIN FETCH v.preferredPoints WHERE v.id = :id` | один `select` з `left join volunteer_points` і `destination_points` |
 
 Без `JOIN FETCH` список із 5 лотів по 2 позиції дав би 6 запитів (1 на лоти і по одному на позиції кожного лота). Це перевіряє тест `LotRepositoryTest.findAllWithItems_loadsLotsWithItemsInSingleQuery` через статистику Hibernate (`getPrepareStatementCount() == 1`).
 
@@ -213,7 +216,26 @@ private List<FoodItem> items = new ArrayList<>();
 
 ### 8.5. Зв'язок many-to-many «улюблені пункти»
 
-_Розділ заповнює Людина 2._
+Волонтер (`VolunteerProfile`) може обирати улюблені пункти призначення (`DestinationPoint`) для отримання або доставки лотів. Зв'язок налаштовано як односторонній `@ManyToMany`:
+
+```java
+@ManyToMany(fetch = FetchType.LAZY)
+@JoinTable(
+        name = "volunteer_points",
+        joinColumns = @JoinColumn(name = "volunteer_id"),
+        inverseJoinColumns = @JoinColumn(name = "point_id"))
+private Set<DestinationPoint> preferredPoints = new HashSet<>();
+```
+
+Особливості реалізації:
+- **Напрямок залежності:** `VolunteerProfile` посилається на `DestinationPoint` із модуля `delivery`. Згідно з правилами модуля Spring Modulith, залежність `volunteer ──► delivery` є дозволеною, а зворотний імпорт відсутній, що унеможливлює циклічні залежності.
+- **Тип колекції `Set`:** Використання `Set<DestinationPoint>` замість `List` запобігає дублюванню однакових пунктів у списку волонтера та усуває ризик декартового добутку при джойнах.
+- **Відсутність каскаду видалення:** На зв'язку навмисно немає `CascadeType.REMOVE` чи `orphanRemoval`. Видалення волонтера видаляє лише його зв'язки в таблиці `volunteer_points`, але самі фізичні пункти призначення (`DestinationPoint`) не видаляються.
+- **Запобігання N+1:** Для читання списку волонтерів або одного волонтера разом із його пунктами використовуються методи `VolunteerRepository.findAllWithPoints()` та `VolunteerRepository.findByIdWithPoints(id)` із `LEFT JOIN FETCH v.preferredPoints`. Це протестовано в `VolunteerRepositoryTest.findByIdWithPoints_withPreferredPoints_loadsPointsInSingleQuery` за допомогою `Statistics.getPrepareStatementCount() == 1`.
+- **Ендпоінти для взаємодії:**
+  - `GET /api/v1/volunteers/{id}/preferred-points` — отримання списку улюблених пунктів волонтера;
+  - `PUT /api/v1/volunteers/{id}/preferred-points/{pointId}` — додавання пункту до списку улюблених;
+  - `DELETE /api/v1/volunteers/{id}/preferred-points/{pointId}` — видалення пункту зі списку улюблених.
 
 ### 8.6. Чому `Delivery.volunteerId` це `UUID`, а не зв'язок
 
@@ -223,4 +245,18 @@ _Розділ заповнює Людина 2._
 
 ### 8.7. Конкуренція: `@Version` і атомарні `UPDATE`
 
-Кожна сутність із `id`, який призначається в коді, має поле `@Version`. Без нього Spring Data вважає сутність неновою і перед кожним `INSERT` робить зайвий `SELECT` (`merge`). Замість `synchronized` конкуренцію забезпечують оптимістичне блокування (`@Version`, помилка `ObjectOptimisticLockingFailureException` дає відповідь 409) і атомарні `UPDATE` для лічильників.
+Кожна сутність із `id`, який призначається в коді (`FoodLot`, `VolunteerProfile`, `DestinationPoint`, `Delivery`, `DonorStats`), має поле `@Version private Long version;`. Без нього Spring Data вважає сутність неновою і перед кожним `INSERT` робить зайвий `SELECT` (`merge`). Замість `synchronized` конкуренцію забезпечують:
+
+1. **Оптимістичне блокування (`@Version`):**
+   - Будь-яка паралельна модифікація сутності (наприклад, одночасне оновлення профілю `PUT /volunteers/{id}` або паралельне резервування) перевіряє збіг версії.
+   - У разі конфлікту виникає `ObjectOptimisticLockingFailureException`, яке глобальний обробник перетворює на HTTP 409 Conflict (`ProblemDetail`).
+
+2. **Атомарні SQL `UPDATE` для лічильників:**
+   - Оновлення лічильників статистики волонтера (`completedDeliveries`, `noShows`, `latePickups`) виконується асинхронним слухачем `VolunteerStatsListener` за подією `DeliveryFinishedEvent`.
+   - Замість `synchronized` у методі сервісу (який відпускає монітор до фіксації транзакції в БД і не рятує від гонки в базі) та замість циклу read-modify-write (який би генерував конфлікти оптимістичного блокування при паралельних подіях) використовуються прямі SQL-запити на рівні БД:
+   ```java
+   @Modifying
+   @Query("UPDATE VolunteerProfile v SET v.completedDeliveries = v.completedDeliveries + 1 WHERE v.id = :id")
+   int incrementCompleted(@Param("id") UUID id);
+   ```
+   - Завдяки цьому лічильники оновлюються атомарно всередині однієї операції в базі даних без блокування сутності в пам'яті.
