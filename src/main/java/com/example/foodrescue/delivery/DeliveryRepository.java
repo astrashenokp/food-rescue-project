@@ -17,7 +17,4 @@ public interface DeliveryRepository extends ListCrudRepository<Delivery, UUID> {
 
     @Query("SELECT d FROM Delivery d JOIN FETCH d.lot LEFT JOIN FETCH d.destinationPoint ORDER BY d.id")
     List<Delivery> findAllWithLotAndPoint();
-
-    @Query("SELECT d FROM Delivery d JOIN FETCH d.lot LEFT JOIN FETCH d.destinationPoint WHERE d.id = :id")
-    Optional<Delivery> findByIdWithLotAndPoint(@Param("id") UUID id);
 }

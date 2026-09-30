@@ -131,9 +131,9 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     @Override
     @Transactional(readOnly = true)
-    public DeliveryResponse getDelivery(UUID id) {
-        Delivery delivery = deliveryRepository.findByIdWithLotAndPoint(id)
-                .orElseThrow(() -> new DeliveryNotFoundException(id));
+    public DeliveryResponse getDelivery(UUID lotId) {
+        Delivery delivery = deliveryRepository.findByLotIdWithLot(lotId)
+                .orElseThrow(() -> new DeliveryNotFoundException(lotId));
         return DeliveryResponse.from(delivery);
     }
 

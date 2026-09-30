@@ -61,9 +61,9 @@ public class DeliveryController {
         return deliveryService.getDeliveries();
     }
 
-    @GetMapping("/deliveries/{id}")
-    public DeliveryResponse getDelivery(@PathVariable UUID id) {
-        return deliveryService.getDelivery(id);
+    @GetMapping("/deliveries/{lotId}")
+    public DeliveryResponse getDelivery(@PathVariable UUID lotId) {
+        return deliveryService.getDelivery(lotId);
     }
 
     @PostMapping("/lots/{id}/pickup")

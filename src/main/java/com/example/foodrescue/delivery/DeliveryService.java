@@ -17,7 +17,7 @@ public interface DeliveryService {
 
     List<DeliveryResponse> getDeliveries();
 
-    DeliveryResponse getDelivery(UUID id);
+    DeliveryResponse getDelivery(UUID lotId);
 
     DeliveryResponse pickup(UUID lotId, PickupRequest request);
 
