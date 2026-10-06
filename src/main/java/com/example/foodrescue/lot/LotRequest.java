@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -18,7 +19,8 @@ import java.util.UUID;
 @ValidPickupWindow
 public record LotRequest(
         @NotNull UUID donorOrgId,
-        @NotBlank @Size(min = 3, max = 100) String title,
+        @NotBlank @Size(min = 3, max = 100)
+        @Schema(example = "Випічка з кінця дня") String title,
         @NotNull FoodCategory category,
         @NotEmpty List<@Valid FoodItemRequest> items,
         @NotNull @DecimalMin("0.1") BigDecimal totalWeightKg,

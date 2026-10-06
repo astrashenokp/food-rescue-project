@@ -260,3 +260,7 @@ private Set<DestinationPoint> preferredPoints = new HashSet<>();
    int incrementCompleted(@Param("id") UUID id);
    ```
    - Завдяки цьому лічильники оновлюються атомарно всередині однієї операції в базі даних без блокування сутності в пам'яті.
+
+## 9. Автоконфігурація
+
+`ObservabilityAutoConfiguration` за замовчуванням реєструє `TraceIdFilter`, який додає `X-Trace-Id` до відповіді та MDC кожного HTTP-запиту. Фільтр можна вимкнути властивістю `foodrescue.observability.trace-id-enabled=false`, а назву заголовка змінити через `foodrescue.observability.trace-header`. Профілі запускаються аргументом `--spring.profiles.active=dev` або `--spring.profiles.active=prod`: `dev` вмикає DEBUG для проєкту й показ SQL, а `prod` лишає кореневий рівень INFO. Автоконфігурація перевіряється через `ApplicationContextRunner` для значень `true`, `false` і властивості за замовчуванням. Під час аудиту модуля `lot` блоків `catch`, що ковтають винятки, не знайдено.
