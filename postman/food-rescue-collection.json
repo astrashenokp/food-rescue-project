@@ -1,0 +1,325 @@
+{
+  "info": {
+    "name": "Food Rescue — підтверджена доставка",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Перевірка доставки від створення лота до підтвердження."
+  },
+  "item": [
+    {
+      "name": "1. Створити пункт призначення",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/destination-points",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "destination-points"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"organizationId\": \"{{organizationId}}\",\n  \"name\": \"Тепла хата {{runId}}\",\n  \"address\": \"Київ, вул. Тестова, 1\",\n  \"workingHours\": \"08:00-20:00\",\n  \"acceptedCategories\": [\n    \"BAKERY\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "[\"destinationPointId\", \"volunteerId\", \"lotId\", \"confirmationCode\"].forEach(key => pm.environment.unset(key));",
+              "pm.environment.set(\"runId\", pm.variables.replaceIn(\"{{$guid}}\"));",
+              "pm.environment.set(\"organizationId\", pm.variables.replaceIn(\"{{$guid}}\"));",
+              "pm.environment.set(\"donorOrgId\", pm.variables.replaceIn(\"{{$guid}}\"));",
+              "const now = Date.now();",
+              "pm.environment.set(\"pickupFrom\", new Date(now + 3600000).toISOString());",
+              "pm.environment.set(\"pickupTo\", new Date(now + 10800000).toISOString());",
+              "pm.environment.set(\"bestBefore\", new Date(now + 86400000).toISOString().slice(0, 10));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"Є X-Trace-Id\", function () { pm.expect(pm.response.headers.get(\"X-Trace-Id\")).to.be.a(\"string\").and.not.empty; });",
+              "pm.test(\"Location містить ID\", function () {",
+              "    const location = pm.response.headers.get(\"Location\");",
+              "    pm.expect(location).to.be.a(\"string\").and.not.empty;",
+              "    const id = location.substring(location.lastIndexOf(\"/\") + 1);",
+              "    pm.expect(id).to.match(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);",
+              "    pm.environment.set(\"destinationPointId\", id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Створити волонтера",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/volunteers",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "volunteers"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Тестовий Волонтер\",\n  \"email\": \"volunteer-{{runId}}@example.com\",\n  \"phone\": \"+380501234567\",\n  \"transportType\": \"CAR\",\n  \"activityZone\": \"Київ\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"Є X-Trace-Id\", function () { pm.expect(pm.response.headers.get(\"X-Trace-Id\")).to.be.a(\"string\").and.not.empty; });",
+              "pm.test(\"Location містить ID\", function () {",
+              "    const location = pm.response.headers.get(\"Location\");",
+              "    pm.expect(location).to.be.a(\"string\").and.not.empty;",
+              "    const id = location.substring(location.lastIndexOf(\"/\") + 1);",
+              "    pm.expect(id).to.match(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);",
+              "    pm.environment.set(\"volunteerId\", id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Створити лот",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/lots",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "lots"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"donorOrgId\": \"{{donorOrgId}}\",\n  \"title\": \"Випічка з кінця дня\",\n  \"category\": \"BAKERY\",\n  \"items\": [\n    {\n      \"name\": \"Хліб\",\n      \"quantity\": 5,\n      \"unit\": \"KG\",\n      \"bestBefore\": \"{{bestBefore}}\"\n    }\n  ],\n  \"totalWeightKg\": 5,\n  \"storageCondition\": \"ROOM\",\n  \"pickupAddress\": \"Київ, вул. Тестова, 2\",\n  \"pickupFrom\": \"{{pickupFrom}}\",\n  \"pickupTo\": \"{{pickupTo}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"Є X-Trace-Id\", function () { pm.expect(pm.response.headers.get(\"X-Trace-Id\")).to.be.a(\"string\").and.not.empty; });",
+              "pm.test(\"Location містить ID\", function () {",
+              "    const location = pm.response.headers.get(\"Location\");",
+              "    pm.expect(location).to.be.a(\"string\").and.not.empty;",
+              "    const id = location.substring(location.lastIndexOf(\"/\") + 1);",
+              "    pm.expect(id).to.match(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);",
+              "    pm.environment.set(\"lotId\", id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Опублікувати лот",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/lots/{{lotId}}/publication",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "lots", "{{lotId}}", "publication"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Є X-Trace-Id\", function () { pm.expect(pm.response.headers.get(\"X-Trace-Id\")).to.be.a(\"string\").and.not.empty; });",
+              "pm.test(\"Стан PUBLISHED\", function () { pm.expect(pm.response.json().status).to.eql(\"PUBLISHED\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Зарезервувати лот",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/lots/{{lotId}}/reservation",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "lots", "{{lotId}}", "reservation"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"volunteerId\": \"{{volunteerId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"Є X-Trace-Id\", function () { pm.expect(pm.response.headers.get(\"X-Trace-Id\")).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Забрати лот",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/lots/{{lotId}}/pickup",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "lots", "{{lotId}}", "pickup"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"actualWeightKg\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Є X-Trace-Id\", function () { pm.expect(pm.response.headers.get(\"X-Trace-Id\")).to.be.a(\"string\").and.not.empty; });",
+              "pm.test(\"Стан PICKED_UP\", function () { pm.expect(pm.response.json().lotStatus).to.eql(\"PICKED_UP\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Доставити лот",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/lots/{{lotId}}/delivery",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "lots", "{{lotId}}", "delivery"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"destinationPointId\": \"{{destinationPointId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Є X-Trace-Id\", function () { pm.expect(pm.response.headers.get(\"X-Trace-Id\")).to.be.a(\"string\").and.not.empty; });",
+              "pm.test(\"Стан DELIVERED\", function () { pm.expect(pm.response.json().lotStatus).to.eql(\"DELIVERED\"); });",
+              "pm.test(\"Отримано код підтвердження\", function () {",
+              "    const code = pm.response.json().confirmationCode;",
+              "    pm.expect(code).to.match(/^\\d{6}$/);",
+              "    pm.environment.set(\"confirmationCode\", code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Підтвердити отримання",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/lots/{{lotId}}/confirmation",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "lots", "{{lotId}}", "confirmation"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"confirmationCode\": \"{{confirmationCode}}\",\n  \"receivedWeightKg\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Є X-Trace-Id\", function () { pm.expect(pm.response.headers.get(\"X-Trace-Id\")).to.be.a(\"string\").and.not.empty; });",
+              "pm.test(\"Стан CONFIRMED\", function () { pm.expect(pm.response.json().lotStatus).to.eql(\"CONFIRMED\"); });",
+              "pm.environment.unset(\"confirmationCode\");"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

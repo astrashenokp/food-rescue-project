@@ -233,9 +233,9 @@ private Set<DestinationPoint> preferredPoints = new HashSet<>();
 - **Відсутність каскаду видалення:** На зв'язку навмисно немає `CascadeType.REMOVE` чи `orphanRemoval`. Видалення волонтера видаляє лише його зв'язки в таблиці `volunteer_points`, але самі фізичні пункти призначення (`DestinationPoint`) не видаляються.
 - **Запобігання N+1:** Для читання списку волонтерів або одного волонтера разом із його пунктами використовуються методи `VolunteerRepository.findAllWithPoints()` та `VolunteerRepository.findByIdWithPoints(id)` із `LEFT JOIN FETCH v.preferredPoints`. Це протестовано в `VolunteerRepositoryTest.findByIdWithPoints_withPreferredPoints_loadsPointsInSingleQuery` за допомогою `Statistics.getPrepareStatementCount() == 1`.
 - **Ендпоінти для взаємодії:**
-  - `GET /api/v1/volunteers/{id}/preferred-points` — отримання списку улюблених пунктів волонтера;
-  - `PUT /api/v1/volunteers/{id}/preferred-points/{pointId}` — додавання пункту до списку улюблених;
-  - `DELETE /api/v1/volunteers/{id}/preferred-points/{pointId}` — видалення пункту зі списку улюблених.
+    - `GET /api/v1/volunteers/{id}/preferred-points` — отримання списку улюблених пунктів волонтера;
+    - `PUT /api/v1/volunteers/{id}/preferred-points/{pointId}` — додавання пункту до списку улюблених;
+    - `DELETE /api/v1/volunteers/{id}/preferred-points/{pointId}` — видалення пункту зі списку улюблених.
 
 ### 8.6. Чому `Delivery.volunteerId` це `UUID`, а не зв'язок
 
@@ -248,18 +248,18 @@ private Set<DestinationPoint> preferredPoints = new HashSet<>();
 Кожна сутність із `id`, який призначається в коді (`FoodLot`, `VolunteerProfile`, `DestinationPoint`, `Delivery`, `DonorStats`), має поле `@Version private Long version;`. Без нього Spring Data вважає сутність неновою і перед кожним `INSERT` робить зайвий `SELECT` (`merge`). Замість `synchronized` конкуренцію забезпечують:
 
 1. **Оптимістичне блокування (`@Version`):**
-   - Будь-яка паралельна модифікація сутності (наприклад, одночасне оновлення профілю `PUT /volunteers/{id}` або паралельне резервування) перевіряє збіг версії.
-   - У разі конфлікту виникає `ObjectOptimisticLockingFailureException`, яке глобальний обробник перетворює на HTTP 409 Conflict (`ProblemDetail`).
+    - Будь-яка паралельна модифікація сутності (наприклад, одночасне оновлення профілю `PUT /volunteers/{id}` або паралельне резервування) перевіряє збіг версії.
+    - У разі конфлікту виникає `ObjectOptimisticLockingFailureException`, яке глобальний обробник перетворює на HTTP 409 Conflict (`ProblemDetail`).
 
 2. **Атомарні SQL `UPDATE` для лічильників:**
-   - Оновлення лічильників статистики волонтера (`completedDeliveries`, `noShows`, `latePickups`) виконується асинхронним слухачем `VolunteerStatsListener` за подією `DeliveryFinishedEvent`.
-   - Замість `synchronized` у методі сервісу (який відпускає монітор до фіксації транзакції в БД і не рятує від гонки в базі) та замість циклу read-modify-write (який би генерував конфлікти оптимістичного блокування при паралельних подіях) використовуються прямі SQL-запити на рівні БД:
+    - Оновлення лічильників статистики волонтера (`completedDeliveries`, `noShows`, `latePickups`) виконується асинхронним слухачем `VolunteerStatsListener` за подією `DeliveryFinishedEvent`.
+    - Замість `synchronized` у методі сервісу (який відпускає монітор до фіксації транзакції в БД і не рятує від гонки в базі) та замість циклу read-modify-write (який би генерував конфлікти оптимістичного блокування при паралельних подіях) використовуються прямі SQL-запити на рівні БД:
    ```java
    @Modifying
    @Query("UPDATE VolunteerProfile v SET v.completedDeliveries = v.completedDeliveries + 1 WHERE v.id = :id")
    int incrementCompleted(@Param("id") UUID id);
    ```
-   - Завдяки цьому лічильники оновлюються атомарно всередині однієї операції в базі даних без блокування сутності в пам'яті.
+    - Завдяки цьому лічильники оновлюються атомарно всередині однієї операції в базі даних без блокування сутності в пам'яті.
 
 ## 9. Автоконфігурація
 
@@ -274,3 +274,16 @@ private Set<DestinationPoint> preferredPoints = new HashSet<>();
 - **6-значний код підтвердження** доставки — одноразовий секрет, що діє як пароль доступу. Маскується в `DeliveryServiceImpl` при помилковому введенні: `*****0` замість `482910`.
 
 Аудит блоків `catch` у модулі `volunteer`: блоків `catch`, що ковтають або приховують виняток, не знайдено (`grep -rn "catch" src/main/java/com/example/foodrescue/volunteer` — 0 результатів). Усі помилки обробляються через типізовані бізнес-винятки.
+
+
+## 11. OpenAPI і Postman
+
+Swagger UI доступний за адресою `http://localhost:8080/swagger-ui/index.html`, специфікація — `http://localhost:8080/v3/api-docs`; у `DestinationPointRequest.name` додано приклад `Їдальня "Тепла хата"`.
+Колекція `postman/food-rescue-collection.json` та оточення `postman/food-rescue-environment.json` виконують один сценарій із восьми кроків: пункт → волонтер → лот → публікація → резервування → pickup → delivery → confirm.
+Після запуску застосунку (`./mvnw spring-boot:run`, Java 25) виконайте команду нижче за наявності Node.js/npm: колекція перевіряє точні HTTP-статуси (створення та резервування — 201, інші кроки — 200), `X-Trace-Id` та кінцевий `lotStatus: "CONFIRMED"`.
+ID беруться з `Location`, код підтвердження — з відповіді доставки, а майбутні дати, унікальна назва пункту та email генеруються перед першим запитом; усі вісім кроків слід запускати послідовно з увімкненим `TraceIdFilter` і стандартним заголовком `X-Trace-Id`.
+Аудит пакета `delivery`: блоків `catch` і викликів `System.out` не знайдено, типізовані винятки передаються глобальному обробнику; невірний код у новому параметризованому `log.warn` проходить через `SensitiveDataMasker.maskCode`.
+
+```bash
+npx newman run postman/food-rescue-collection.json -e postman/food-rescue-environment.json
+```
