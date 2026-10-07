@@ -1,5 +1,6 @@
 package com.example.foodrescue.volunteer;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -13,6 +14,7 @@ public record VolunteerRequest(
 
         @NotBlank(message = "Email обов'язковий")
         @Email(message = "Невірний формат email")
+        @Schema(example = "volunteer@example.com")
         String email,
 
         @NotBlank(message = "Телефон обов'язковий")

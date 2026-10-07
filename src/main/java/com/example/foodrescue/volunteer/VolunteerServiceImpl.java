@@ -5,9 +5,12 @@ import com.example.foodrescue.common.LotNotFoundException;
 import com.example.foodrescue.common.LotRepository;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.LotStatusChanger;
+import com.example.foodrescue.common.SensitiveDataMasker;
 import com.example.foodrescue.delivery.DeliveryOutcome;
 import com.example.foodrescue.delivery.DestinationPoint;
 import com.example.foodrescue.delivery.DestinationPointRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +27,7 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class VolunteerServiceImpl implements VolunteerService {
 
+    private static final Logger log = LoggerFactory.getLogger(VolunteerServiceImpl.class);
     private static final int RESERVE_DURATION_MINUTES = 30;
 
     private final VolunteerRepository volunteerRepository;
@@ -60,7 +64,9 @@ public class VolunteerServiceImpl implements VolunteerService {
         profile.setPhone(request.phone());
         profile.setTransportType(request.transportType());
         profile.setActivityZone(request.activityZone());
-        return VolunteerResponse.from(volunteerRepository.save(profile));
+        VolunteerResponse response = VolunteerResponse.from(volunteerRepository.save(profile));
+        log.info("Зареєстровано волонтера {} з email {}", response.id(), SensitiveDataMasker.maskEmail(request.email()));
+        return response;
     }
 
     @Override
@@ -92,7 +98,9 @@ public class VolunteerServiceImpl implements VolunteerService {
         profile.setPhone(request.phone());
         profile.setTransportType(request.transportType());
         profile.setActivityZone(request.activityZone());
-        return VolunteerResponse.from(volunteerRepository.save(profile));
+        VolunteerResponse response = VolunteerResponse.from(volunteerRepository.save(profile));
+        log.info("Оновлено профіль волонтера {}", response.id());
+        return response;
     }
 
     @Override
@@ -108,6 +116,7 @@ public class VolunteerServiceImpl implements VolunteerService {
         }
 
         volunteerRepository.delete(profile);
+        log.info("Видалено волонтера {}", id);
     }
 
     /**
@@ -137,6 +146,7 @@ public class VolunteerServiceImpl implements VolunteerService {
         lot.setReservedByVolunteerId(request.volunteerId());
         lot.setReservedUntil(now.plus(RESERVE_DURATION_MINUTES, ChronoUnit.MINUTES));
         lotRepository.save(lot);
+        log.info("Волонтер {} зарезервував лот {}", request.volunteerId(), lotId);
 
         return lot;
     }
@@ -155,6 +165,7 @@ public class VolunteerServiceImpl implements VolunteerService {
         lot.setReservedByVolunteerId(null);
         lot.setReservedUntil(null);
         lotRepository.save(lot);
+        log.info("Резерв скасовано на лоті {}", lotId);
 
         return lot;
     }
@@ -178,6 +189,7 @@ public class VolunteerServiceImpl implements VolunteerService {
         if (latePickup) {
             volunteerRepository.incrementLatePickups(volunteerId);
         }
+        log.info("Записано результат {} для волонтера {}, запізнення: {}", outcome, volunteerId, latePickup);
     }
 
     @Override
@@ -191,6 +203,7 @@ public class VolunteerServiceImpl implements VolunteerService {
 
         profile.getPreferredPoints().add(point);
         volunteerRepository.save(profile);
+        log.debug("Волонтер {} додав бажану точку {}", volunteerId, pointId);
         return new PreferredPointResponse(point.getId(), point.getName());
     }
 
@@ -207,6 +220,7 @@ public class VolunteerServiceImpl implements VolunteerService {
         }
 
         volunteerRepository.save(profile);
+        log.debug("Волонтер {} видалив бажану точку {}", volunteerId, pointId);
     }
 
     @Override

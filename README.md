@@ -264,3 +264,13 @@ private Set<DestinationPoint> preferredPoints = new HashSet<>();
 ## 9. Автоконфігурація
 
 `ObservabilityAutoConfiguration` за замовчуванням реєструє `TraceIdFilter`, який додає `X-Trace-Id` до відповіді та MDC кожного HTTP-запиту. Фільтр можна вимкнути властивістю `foodrescue.observability.trace-id-enabled=false`, а назву заголовка змінити через `foodrescue.observability.trace-header`. Профілі запускаються аргументом `--spring.profiles.active=dev` або `--spring.profiles.active=prod`: `dev` вмикає DEBUG для проєкту й показ SQL, а `prod` лишає кореневий рівень INFO. Автоконфігурація перевіряється через `ApplicationContextRunner` для значень `true`, `false` і властивості за замовчуванням. Під час аудиту модуля `lot` блоків `catch`, що ковтають винятки, не знайдено.
+
+## 10. Логування і маскування
+
+Конфігурація логування: `src/main/resources/logback-spring.xml`. Поточний файл журналу: `logs/foodrescue.log`. При досягненні 10 MB або опівночі файл ротується і стискається до `logs/archived/foodrescue-%d{yyyy-MM-dd}.%i.log.gz`. Зберігається 14 останніх файлів, загальний обсяг архіву не перевищує 200 MB. Кожен рядок журналу містить `[%X{traceId:-}]` — ідентифікатор запиту з MDC, який виставляє `TraceIdFilter`.
+
+Маскування персональних даних (клас `SensitiveDataMasker` у модулі `common`):
+- **Email волонтера** — персональні дані (GDPR-чутливі). У журналі записується у вигляді `v***@example.com` замість `volunteer@example.com`. Застосовується при реєстрації: `log.info("Зареєстровано волонтера {} з email {}", id, SensitiveDataMasker.maskEmail(email))`.
+- **6-значний код підтвердження** доставки — одноразовий секрет, що діє як пароль доступу. Маскується в `DeliveryServiceImpl` при помилковому введенні: `*****0` замість `482910`.
+
+Аудит блоків `catch` у модулі `volunteer`: блоків `catch`, що ковтають або приховують виняток, не знайдено (`grep -rn "catch" src/main/java/com/example/foodrescue/volunteer` — 0 результатів). Усі помилки обробляються через типізовані бізнес-винятки.
