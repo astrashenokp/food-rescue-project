@@ -1,6 +1,7 @@
 package com.example.foodrescue.delivery;
 
 import com.example.foodrescue.common.FoodCategory;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -16,6 +17,7 @@ public record DestinationPointRequest(
 
         @NotBlank(message = "Назва обов'язкова")
         @Size(min = 2, max = 100, message = "Назва від 2 до 100 символів")
+        @Schema(example = "Їдальня \"Тепла хата\"")
         String name,
 
         @NotBlank(message = "Адреса обов'язкова")

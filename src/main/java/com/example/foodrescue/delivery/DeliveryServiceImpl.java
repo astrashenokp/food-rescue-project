@@ -8,6 +8,9 @@ import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.LotStatusChanger;
 import com.example.foodrescue.common.LotStatusHistory;
 import com.example.foodrescue.common.StatusHistoryRecorder;
+import com.example.foodrescue.common.SensitiveDataMasker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +26,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class DeliveryServiceImpl implements DeliveryService {
+
+    private static final Logger log = LoggerFactory.getLogger(DeliveryServiceImpl.class);
 
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
 
@@ -195,6 +200,8 @@ public class DeliveryServiceImpl implements DeliveryService {
         FoodLot lot = delivery.getLot();
 
         if (!request.confirmationCode().equals(delivery.getConfirmationCode())) {
+            log.warn("Невірний код підтвердження {} для лота {}",
+                    SensitiveDataMasker.maskCode(request.confirmationCode()), lotId);
             throw new InvalidConfirmationCodeException();
         }
 
