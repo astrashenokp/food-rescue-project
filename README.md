@@ -267,7 +267,7 @@ private Set<DestinationPoint> preferredPoints = new HashSet<>();
 
 ## 10. Логування і маскування
 
-Конфігурація логування: `src/main/resources/logback-spring.xml`. Поточний файл журналу: `logs/foodrescue.log`. При досягненні 10 MB або опівночі файл ротується і стискається до `logs/archived/foodrescue-%d{yyyy-MM-dd}.%i.log.gz`. Зберігається 14 останніх файлів, загальний обсяг архіву не перевищує 200 MB. Кожен рядок журналу містить `[%X{traceId:-}]` — ідентифікатор запиту з MDC, який виставляє `TraceIdFilter`.
+Конфігурація логування: `src/main/resources/logback-spring.xml`. Поточний файл журналу: `logs/foodrescue.log`. При досягненні 10 MB або опівночі файл ротується і стискається до `logs/archived/foodrescue-%d{yyyy-MM-dd}.%i.log.gz`. Архіви зберігаються за останні 14 днів, а їхній загальний обсяг не перевищує 200 MB. Кожен рядок журналу має поле `[%X{traceId:-}]`; під час HTTP-запитів його заповнює `TraceIdFilter`.
 
 Маскування персональних даних (клас `SensitiveDataMasker` у модулі `common`):
 - **Email волонтера** — персональні дані (GDPR-чутливі). У журналі записується у вигляді `v***@example.com` замість `volunteer@example.com`. Застосовується при реєстрації: `log.info("Зареєстровано волонтера {} з email {}", id, SensitiveDataMasker.maskEmail(email))`.
