@@ -279,11 +279,19 @@ private Set<DestinationPoint> preferredPoints = new HashSet<>();
 ## 11. OpenAPI і Postman
 
 Swagger UI доступний за адресою `http://localhost:8080/swagger-ui/index.html`, специфікація — `http://localhost:8080/v3/api-docs`; у `DestinationPointRequest.name` додано приклад `Їдальня "Тепла хата"`.
-Колекція `postman/food-rescue-collection.json` та оточення `postman/food-rescue-environment.json` виконують один сценарій із восьми кроків: пункт → волонтер → лот → публікація → резервування → pickup → delivery → confirm.
+Колекція `postman/food-rescue-collection.json` та оточення `postman/food-rescue-environment.json` виконують один сценарій із дев'яти кроків: вхід донором → пункт → волонтер → лот → публікація → резервування → pickup → delivery → confirm.
 Після запуску застосунку (`./mvnw spring-boot:run`, Java 25) виконайте команду нижче за наявності Node.js/npm: колекція перевіряє точні HTTP-статуси (створення та резервування — 201, інші кроки — 200), `X-Trace-Id` та кінцевий `lotStatus: "CONFIRMED"`.
-ID беруться з `Location`, код підтвердження — з відповіді доставки, а майбутні дати, унікальна назва пункту та email генеруються перед першим запитом; усі вісім кроків слід запускати послідовно з увімкненим `TraceIdFilter` і стандартним заголовком `X-Trace-Id`.
+ID беруться з `Location`, код підтвердження — з відповіді доставки, а майбутні дати, унікальна назва пункту та email генеруються перед першим запитом; усі дев'ять кроків слід запускати послідовно з увімкненим `TraceIdFilter` і стандартним заголовком `X-Trace-Id`.
 Аудит пакета `delivery`: блоків `catch` і викликів `System.out` не знайдено, типізовані винятки передаються глобальному обробнику; невірний код у новому параметризованому `log.warn` проходить через `SensitiveDataMasker.maskCode`.
 
 ```bash
 npx newman run postman/food-rescue-collection.json -e postman/food-rescue-environment.json
 ```
+
+
+## 12. Безпека
+
+Застосунок захищений Spring Security зі stateless JWT. Вхід: `POST /api/v1/auth/login` з тілом `{"username": "...", "password": "..."}`, у відповіді `accessToken`, який передається в заголовку `Authorization: Bearer <token>`. Токен живе `security.jwt.expiration-minutes` (15 хвилин), секрет береться зі змінної `JWT_SECRET`.
+Паролі зберігаються як хеші Argon2id. Помилки 401 і 403 повертаються у форматі `ProblemDetail` з `instance`. Публічні лише логін, Swagger/OpenAPI та `actuator/health`; CORS дозволено для `http://localhost:3000` і `http://localhost:5173`.
+Ролі: `DONOR`, `VOLUNTEER`, `COORDINATOR`, `ADMIN`. У модулі `lot` створення, оновлення, видалення, публікація й скасування лотів та зміна позицій дозволені лише `DONOR`, схвалення лоту лише `ADMIN`, читання будь-якому автентифікованому користувачу (`@PreAuthorize` на `LotService` і `LotItemService`).
+Демо-користувачі створюються при старті: `donor1` / `donorpass1`, `volunteer1` / `volunteerpass1`, `coordinator1` / `coordinatorpass1`, `admin1` / `adminpass1`. Для Swagger UI є схема `BearerAuth`.

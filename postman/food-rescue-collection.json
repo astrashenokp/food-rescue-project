@@ -4,7 +4,53 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": "Перевірка доставки від створення лота до підтвердження."
   },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
   "item": [
+    {
+      "name": "0. Увійти як донор",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "login"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"donor1\",\n  \"password\": \"donorpass1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Є accessToken\", function () {",
+              "    const token = pm.response.json().accessToken;",
+              "    pm.expect(token).to.be.a(\"string\").and.not.empty;",
+              "    pm.environment.set(\"accessToken\", token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
     {
       "name": "1. Створити пункт призначення",
       "request": {
