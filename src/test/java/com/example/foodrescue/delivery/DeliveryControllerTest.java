@@ -2,11 +2,14 @@ package com.example.foodrescue.delivery;
 
 import com.example.foodrescue.common.BusinessRuleException;
 import com.example.foodrescue.common.FoodCategory;
+import com.example.foodrescue.common.JwtValidatorService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
@@ -34,6 +37,9 @@ class DeliveryControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @MockitoBean private DeliveryService deliveryService;
+    @MockitoBean private JwtValidatorService jwtValidatorService;
+    @MockitoBean private UserDetailsService userDetailsService;
+    @MockitoBean private AuthenticationEntryPoint authenticationEntryPoint;
 
     private DestinationPointRequest validRequest() {
         return new DestinationPointRequest(
