@@ -11,6 +11,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.AuthenticationEntryPoint;
 
@@ -19,6 +20,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -79,6 +81,22 @@ class JwtAuthenticationFilterTest {
 
         verify(filterChain).doFilter(any(), any());
         verifyNoInteractions(jwtValidatorService);
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    void disabledUser_callsEntryPointAndStopsChain() throws Exception {
+        UserDetails disabled = mock(UserDetails.class);
+        given(disabled.isEnabled()).willReturn(false);
+        given(jwtValidatorService.extractUsername("good")).willReturn("donor1");
+        given(userDetailsService.loadUserByUsername("donor1")).willReturn(disabled);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer good");
+
+        filter().doFilter(request, new MockHttpServletResponse(), filterChain);
+
+        verify(authenticationEntryPoint).commence(any(), any(), any(AuthenticationException.class));
+        verifyNoInteractions(filterChain);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 }
