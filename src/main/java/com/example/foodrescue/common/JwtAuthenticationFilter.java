@@ -47,12 +47,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             String username = jwtValidatorService.extractUsername(header.substring(BEARER_PREFIX.length()));
-            UserDetails user = userDetailsService.loadUserByUsername(username);
-            if (!user.isEnabled()) {
-                throw new DisabledException("Обліковий запис вимкнено");
+            if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails user = userDetailsService.loadUserByUsername(username);
+                if (!user.isEnabled()) {
+                    throw new DisabledException("Обліковий запис вимкнено");
+                }
+                SecurityContextHolder.getContext().setAuthentication(
+                        UsernamePasswordAuthenticationToken.authenticated(user, null, user.getAuthorities()));
             }
-            SecurityContextHolder.getContext().setAuthentication(
-                    UsernamePasswordAuthenticationToken.authenticated(user, null, user.getAuthorities()));
         } catch (DisabledException ex) {
             SecurityContextHolder.clearContext();
             authenticationEntryPoint.commence(request, response, ex);
