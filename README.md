@@ -279,9 +279,9 @@ private Set<DestinationPoint> preferredPoints = new HashSet<>();
 ## 11. OpenAPI і Postman
 
 Swagger UI доступний за адресою `http://localhost:8080/swagger-ui/index.html`, специфікація — `http://localhost:8080/v3/api-docs`; у `DestinationPointRequest.name` додано приклад `Їдальня "Тепла хата"`.
-Колекція `postman/food-rescue-collection.json` та оточення `postman/food-rescue-environment.json` виконують один сценарій із дев'яти кроків: вхід донором → пункт → волонтер → лот → публікація → резервування → pickup → delivery → confirm.
+Колекція `postman/food-rescue-collection.json` та оточення `postman/food-rescue-environment.json` виконують один сценарій із восьми кроків і трьох входів (координатор, донор, волонтер): пункт → волонтер → лот → публікація → резервування → pickup → delivery → confirm.
 Після запуску застосунку (`./mvnw spring-boot:run`, Java 25) виконайте команду нижче за наявності Node.js/npm: колекція перевіряє точні HTTP-статуси (створення та резервування — 201, інші кроки — 200), `X-Trace-Id` та кінцевий `lotStatus: "CONFIRMED"`.
-ID беруться з `Location`, код підтвердження — з відповіді доставки, а майбутні дати, унікальна назва пункту та email генеруються перед першим запитом; усі дев'ять кроків слід запускати послідовно з увімкненим `TraceIdFilter` і стандартним заголовком `X-Trace-Id`.
+ID беруться з `Location`, код підтвердження — з відповіді доставки, а майбутні дати, унікальна назва пункту та email генеруються перед першим запитом; усі кроки слід запускати послідовно з увімкненим `TraceIdFilter` і стандартним заголовком `X-Trace-Id`.
 Аудит пакета `delivery`: блоків `catch` і викликів `System.out` не знайдено, типізовані винятки передаються глобальному обробнику; невірний код у новому параметризованому `log.warn` проходить через `SensitiveDataMasker.maskCode`.
 
 ```bash
@@ -291,7 +291,7 @@ npx newman run postman/food-rescue-collection.json -e postman/food-rescue-enviro
 
 ## 12. Безпека
 
-Застосунок захищений Spring Security зі stateless JWT. Вхід: `POST /api/v1/auth/login` з тілом `{"username": "...", "password": "..."}`, у відповіді `accessToken`, який передається в заголовку `Authorization: Bearer <token>`. Токен живе `security.jwt.expiration-minutes` (15 хвилин), секрет береться зі змінної `JWT_SECRET` або з файлу `.env` у корені проєкту (скопіюйте `.env.example` у `.env`; файл у gitignore), без нього діє dev-заповнювач. Токен вимкненого користувача відхиляється з 401.
+Застосунок захищений Spring Security зі stateless JWT: сесій немає (`SessionCreationPolicy.STATELESS`), тому CSRF вимкнено, бо API не працює з браузерними сесіями. Вхід: `POST /api/v1/auth/login` з тілом `{"username": "...", "password": "..."}`, у відповіді `accessToken`, який передається в заголовку `Authorization: Bearer <token>`. Токен живе `security.jwt.expiration-minutes` (15 хвилин), секрет береться зі змінної `JWT_SECRET` або з файлу `.env` у корені проєкту (скопіюйте `.env.example` у `.env`; файл у gitignore), без нього діє dev-заповнювач. Токен вимкненого користувача відхиляється з 401.
 Паролі зберігаються як хеші Argon2id. Помилки 401 і 403 повертаються у форматі `ProblemDetail` з `instance`. Публічні лише логін, Swagger/OpenAPI та `actuator/health`; CORS дозволено для `http://localhost:3000` і `http://localhost:5173`.
 Ролі: `DONOR`, `VOLUNTEER`, `COORDINATOR`, `ADMIN`. У модулі `lot` створення, оновлення, видалення, публікація й скасування лотів та зміна позицій дозволені лише `DONOR`, схвалення лоту лише `ADMIN`, читання будь-якому автентифікованому користувачу (`@PreAuthorize` на `LotService` і `LotItemService`). У модулі `volunteer` резервування лоту й скасування резервування дозволені лише `VOLUNTEER` (`@PreAuthorize` на `VolunteerService`), решта методів вимагає будь-якого валідного токена.
 У модулі `delivery` роль `COORDINATOR` потрібна для створення, оновлення та видалення пунктів призначення; роль `VOLUNTEER` — для передачі лоту, доставки й підтвердження отримання. Перегляд пунктів, доставок та історії доступний усім автентифікованим користувачам. Перевірка ролей виконується через `@PreAuthorize` на методах `DeliveryService`, без змін бізнес-логіки та маршрутів.
