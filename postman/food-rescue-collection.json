@@ -12,7 +12,7 @@
   },
   "item": [
     {
-      "name": "0. Увійти як донор",
+      "name": "Вхід: координатор",
       "request": {
         "auth": { "type": "noauth" },
         "method": "POST",
@@ -26,7 +26,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"donor1\",\n  \"password\": \"donorpass1\"\n}",
+          "raw": "{\n  \"username\": \"coordinator1\",\n  \"password\": \"coordinatorpass1\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -40,11 +40,11 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
-              "pm.test(\"Є accessToken\", function () {",
-              "    const token = pm.response.json().accessToken;",
-              "    pm.expect(token).to.be.a(\"string\").and.not.empty;",
-              "    pm.environment.set(\"accessToken\", token);",
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Є accessToken\", function () {",
+              "    const token = pm.response.json().accessToken;",
+              "    pm.expect(token).to.be.a(\"string\").and.not.empty;",
+              "    pm.environment.set(\"accessToken\", token);",
               "});"
             ]
           }
@@ -152,6 +152,46 @@
       ]
     },
     {
+      "name": "Вхід: донор",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "login"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"donor1\",\n  \"password\": \"donorpass1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Є accessToken\", function () {",
+              "    const token = pm.response.json().accessToken;",
+              "    pm.expect(token).to.be.a(\"string\").and.not.empty;",
+              "    pm.environment.set(\"accessToken\", token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "3. Створити лот",
       "request": {
         "method": "POST",
@@ -213,6 +253,46 @@
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
               "pm.test(\"Є X-Trace-Id\", function () { pm.expect(pm.response.headers.get(\"X-Trace-Id\")).to.be.a(\"string\").and.not.empty; });",
               "pm.test(\"Стан PUBLISHED\", function () { pm.expect(pm.response.json().status).to.eql(\"PUBLISHED\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Вхід: волонтер",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "login"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"volunteer1\",\n  \"password\": \"volunteerpass1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Є accessToken\", function () {",
+              "    const token = pm.response.json().accessToken;",
+              "    pm.expect(token).to.be.a(\"string\").and.not.empty;",
+              "    pm.environment.set(\"accessToken\", token);",
+              "});"
             ]
           }
         }
