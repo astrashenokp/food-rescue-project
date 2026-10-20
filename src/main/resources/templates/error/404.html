@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="uk">
+<head th:replace="~{fragments/layout :: head('Сторінку не знайдено')}"></head>
+<body>
+<main class="card">
+    <h1>404: сторінку не знайдено</h1>
+    <p>Такої сторінки не існує.</p>
+    <a th:href="@{/lots}" class="btn btn-primary">До списку лотів</a>
+</main>
+</body>
+</html>

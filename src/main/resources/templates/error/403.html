@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="uk">
+<head th:replace="~{fragments/layout :: head('Доступ заборонено')}"></head>
+<body>
+<main class="card">
+    <h1>403: доступ заборонено</h1>
+    <p>У вас немає прав для цієї дії.</p>
+    <a th:href="@{/lots}" class="btn btn-primary">До списку лотів</a>
+</main>
+</body>
+</html>
