@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="uk">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${title}">Food Rescue</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<nav th:fragment="nav" class="nav">
+    <a class="brand" th:href="@{/lots}">Food Rescue</a>
+    <a sec:authorize="isAuthenticated()" th:href="@{/lots}">Лоти</a>
+    <a sec:authorize="hasRole('VOLUNTEER')" th:href="@{/reservations}">Резервування</a>
+    <a sec:authorize="hasRole('COORDINATOR')" th:href="@{/destination-points}">Пункти призначення</a>
+    <span sec:authorize="isAuthenticated()" class="nav-user">
+        <span sec:authentication="name">user</span>
+        <form th:action="@{/logout}" method="post" class="inline">
+            <button type="submit" class="btn btn-secondary">Вийти</button>
+        </form>
+    </span>
+</nav>
+</body>
+</html>
