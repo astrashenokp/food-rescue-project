@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="uk">
+<head th:replace="~{fragments/layout :: head('Лоти')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="card">
+    <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+    <h1>Лоти</h1>
+    <a sec:authorize="hasRole('DONOR')" th:href="@{/lots/new}" class="btn btn-primary">Додати лот</a>
+    <table>
+        <thead>
+        <tr><th>#</th><th>Назва</th><th>Категорія</th><th>Вага, кг</th><th>Статус</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="lot, stat : ${lots}">
+            <td th:text="${stat.count}">1</td>
+            <td th:text="${lot.title}">Назва</td>
+            <td th:text="${lot.category}">BAKERY</td>
+            <td th:text="${lot.totalWeightKg}">5</td>
+            <td th:text="${lot.status}">DRAFT</td>
+        </tr>
+        </tbody>
+    </table>
+</main>
+</body>
+</html>
