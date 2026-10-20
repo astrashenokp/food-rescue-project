@@ -5,6 +5,7 @@ import com.example.foodrescue.common.FoodLot;
 import com.example.foodrescue.common.InvalidLotStateException;
 import com.example.foodrescue.common.LotNotFoundException;
 import com.example.foodrescue.common.LotRepository;
+import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.LotStatusChanger;
 import com.example.foodrescue.common.NotFoundException;
@@ -570,5 +571,32 @@ class VolunteerServiceImplTest {
 
         assertEquals(1, result.size());
         assertEquals("Центр допомоги", result.get(0).name());
+    }
+
+    // --- getAvailableLots / getReservations ---
+
+    @Test
+    void getAvailableLots_returnsPublishedLots() {
+        FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(5), NOW);
+        given(lotRepository.findAllByStatusWithItems(LotStatus.PUBLISHED)).willReturn(List.of(lot));
+
+        List<LotResponse> result = service.getAvailableLots();
+
+        assertEquals(1, result.size());
+        assertEquals(LOT_ID, result.get(0).id());
+        assertEquals(LotStatus.PUBLISHED, result.get(0).status());
+    }
+
+    @Test
+    void getReservations_returnsReservedLots() {
+        FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(5), NOW);
+        lot.setStatus(LotStatus.RESERVED);
+        lot.setReservedByVolunteerId(VOLUNTEER_ID);
+        given(lotRepository.findAllByStatusWithItems(LotStatus.RESERVED)).willReturn(List.of(lot));
+
+        List<LotResponse> result = service.getReservations();
+
+        assertEquals(1, result.size());
+        assertEquals(VOLUNTEER_ID, result.get(0).reservedByVolunteerId());
     }
 }

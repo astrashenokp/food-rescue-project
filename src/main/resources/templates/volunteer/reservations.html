@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="uk">
+<head th:replace="~{fragments/layout :: head('Резервування')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="card">
+    <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+    <h1>Резервування</h1>
+    <table>
+        <thead>
+        <tr><th>#</th><th>Назва</th><th>Категорія</th><th>Вага, кг</th><th>Адреса</th><th>Резерв до</th></tr>
+        </thead>
+        <tbody>
+        <tr th:if="${#lists.isEmpty(reservations)}"><td colspan="6">Резервувань немає</td></tr>
+        <tr th:each="lot, stat : ${reservations}">
+            <td th:text="${stat.count}">1</td>
+            <td th:text="${lot.title}">Назва</td>
+            <td th:text="${lot.category}">BAKERY</td>
+            <td th:text="${lot.totalWeightKg}">5</td>
+            <td th:text="${lot.pickupAddress}">Адреса</td>
+            <td th:text="${#temporals.format(lot.reservedUntil, 'dd.MM.yyyy HH:mm', 'Europe/Kyiv')}">01.01.2030 10:00</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <h2>Зарезервувати лот</h2>
+    <form th:action="@{/reservations}" th:object="${form}" method="post">
+        <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}" th:each="err : ${#fields.globalErrors()}" th:text="${err}">Помилка</div>
+        <label for="lotId">Лот</label>
+        <select id="lotId" th:field="*{lotId}">
+            <option value="">Оберіть</option>
+            <option th:each="lot : ${lots}" th:value="${lot.id}" th:text="${lot.title + ' (' + lot.category + ', ' + lot.totalWeightKg + ' кг)'}">Хліб</option>
+        </select>
+        <div class="error" th:if="${#fields.hasErrors('lotId')}" th:errors="*{lotId}">Помилка</div>
+
+        <button type="submit" class="btn btn-success">Зарезервувати</button>
+    </form>
+</main>
+</body>
+</html>

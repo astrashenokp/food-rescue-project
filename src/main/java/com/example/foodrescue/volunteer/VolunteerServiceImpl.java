@@ -3,6 +3,7 @@ package com.example.foodrescue.volunteer;
 import com.example.foodrescue.common.FoodLot;
 import com.example.foodrescue.common.LotNotFoundException;
 import com.example.foodrescue.common.LotRepository;
+import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.LotStatusChanger;
 import com.example.foodrescue.common.SensitiveDataMasker;
@@ -168,6 +169,20 @@ public class VolunteerServiceImpl implements VolunteerService {
         log.info("Резерв скасовано на лоті {}", lotId);
 
         return lot;
+    }
+
+    @Override
+    public List<LotResponse> getAvailableLots() {
+        return lotRepository.findAllByStatusWithItems(LotStatus.PUBLISHED).stream()
+                .map(LotResponse::from)
+                .toList();
+    }
+
+    @Override
+    public List<LotResponse> getReservations() {
+        return lotRepository.findAllByStatusWithItems(LotStatus.RESERVED).stream()
+                .map(LotResponse::from)
+                .toList();
     }
 
     /**
