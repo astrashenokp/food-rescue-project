@@ -1,4 +1,4 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.infrastructure.observability;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

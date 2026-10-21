@@ -1,4 +1,4 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.infrastructure.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

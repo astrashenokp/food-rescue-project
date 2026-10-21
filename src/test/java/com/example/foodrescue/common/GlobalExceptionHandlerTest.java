@@ -1,5 +1,6 @@
 package com.example.foodrescue.common;
 
+import com.example.foodrescue.infrastructure.error.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;

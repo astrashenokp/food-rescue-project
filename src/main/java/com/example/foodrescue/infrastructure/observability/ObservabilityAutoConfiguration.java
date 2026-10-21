@@ -1,4 +1,4 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.infrastructure.observability;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;

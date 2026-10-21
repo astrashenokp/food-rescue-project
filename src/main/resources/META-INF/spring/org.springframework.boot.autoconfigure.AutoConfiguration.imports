@@ -1,1 +1,1 @@
-com.example.foodrescue.common.ObservabilityAutoConfiguration
+com.example.foodrescue.infrastructure.observability.ObservabilityAutoConfiguration

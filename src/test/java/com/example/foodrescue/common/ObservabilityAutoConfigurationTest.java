@@ -1,5 +1,7 @@
 package com.example.foodrescue.common;
 
+import com.example.foodrescue.infrastructure.observability.ObservabilityAutoConfiguration;
+import com.example.foodrescue.infrastructure.observability.TraceIdFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
