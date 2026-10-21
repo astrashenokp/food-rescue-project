@@ -1,4 +1,4 @@
-package com.example.foodrescue.volunteer;
+package com.example.foodrescue.volunteer.internal.exception;
 
 import com.example.foodrescue.common.NotFoundException;
 

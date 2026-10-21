@@ -2,6 +2,10 @@ package com.example.foodrescue.volunteer;
 
 import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.volunteer.internal.VolunteerTier;
+import com.example.foodrescue.volunteer.internal.strategy.RestrictedAccess;
+import com.example.foodrescue.volunteer.internal.strategy.StandardAccess;
+import com.example.foodrescue.volunteer.internal.strategy.TrustedAccess;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

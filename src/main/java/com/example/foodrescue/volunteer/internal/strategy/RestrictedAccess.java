@@ -1,4 +1,4 @@
-package com.example.foodrescue.volunteer;
+package com.example.foodrescue.volunteer.internal.strategy;
 
 import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.common.FoodLot;
