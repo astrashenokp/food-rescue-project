@@ -1,4 +1,4 @@
-package com.example.foodrescue.delivery;
+package com.example.foodrescue.delivery.internal;
 
 import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.common.FoodLot;
@@ -9,8 +9,9 @@ import com.example.foodrescue.common.LotStatusChanger;
 import com.example.foodrescue.common.LotStatusHistory;
 import com.example.foodrescue.common.StatusHistoryRecorder;
 import com.example.foodrescue.common.SensitiveDataMasker;
-import com.example.foodrescue.delivery.internal.Delivery;
-import com.example.foodrescue.delivery.internal.DeliveryRepository;
+import com.example.foodrescue.delivery.*;
+import com.example.foodrescue.delivery.internal.exception.*;
+import com.example.foodrescue.delivery.internal.strategy.WeightToleranceStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;

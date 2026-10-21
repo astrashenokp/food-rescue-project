@@ -2,7 +2,8 @@ package com.example.foodrescue.delivery;
 
 import com.example.foodrescue.common.BusinessRuleException;
 import com.example.foodrescue.common.FoodCategory;
-import com.example.foodrescue.common.JwtValidatorService;
+import com.example.foodrescue.security.jwt.JwtValidatorService;
+import com.example.foodrescue.delivery.api.DeliveryController;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;

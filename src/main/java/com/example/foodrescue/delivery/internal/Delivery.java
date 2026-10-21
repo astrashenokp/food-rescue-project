@@ -1,6 +1,7 @@
-package com.example.foodrescue.delivery;
+package com.example.foodrescue.delivery.internal;
 
 import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.delivery.DestinationPoint;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;

@@ -1,6 +1,7 @@
 package com.example.foodrescue.delivery;
 
 import com.example.foodrescue.common.LotStatus;
+import com.example.foodrescue.delivery.internal.Delivery;
 
 import java.math.BigDecimal;
 import java.time.Instant;

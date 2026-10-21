@@ -5,6 +5,8 @@ import com.example.foodrescue.common.FoodLot;
 import com.example.foodrescue.common.LotRepository;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.StorageCondition;
+import com.example.foodrescue.delivery.internal.Delivery;
+import com.example.foodrescue.delivery.internal.DeliveryRepository;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
