@@ -9,6 +9,8 @@ import com.example.foodrescue.common.LotStatusChanger;
 import com.example.foodrescue.common.LotStatusHistory;
 import com.example.foodrescue.common.StatusHistoryRecorder;
 import com.example.foodrescue.common.SensitiveDataMasker;
+import com.example.foodrescue.delivery.internal.Delivery;
+import com.example.foodrescue.delivery.internal.DeliveryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;

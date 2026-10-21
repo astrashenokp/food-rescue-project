@@ -1,6 +1,7 @@
 package com.example.foodrescue.delivery;
 
 import com.example.foodrescue.common.FoodCategory;
+import com.example.foodrescue.delivery.internal.strategy.WeightToleranceStrategy;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;

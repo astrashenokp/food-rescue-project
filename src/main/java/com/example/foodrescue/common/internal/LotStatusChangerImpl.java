@@ -1,5 +1,6 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.common.internal;
 
+import com.example.foodrescue.common.*;
 import org.springframework.stereotype.Service;
 
 @Service

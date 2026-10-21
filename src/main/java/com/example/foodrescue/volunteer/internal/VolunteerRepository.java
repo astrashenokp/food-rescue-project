@@ -1,5 +1,6 @@
 package com.example.foodrescue.volunteer;
 
+import com.example.foodrescue.volunteer.internal.VolunteerProfile;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.JpaRepository;

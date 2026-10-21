@@ -10,6 +10,7 @@ import com.example.foodrescue.common.SensitiveDataMasker;
 import com.example.foodrescue.delivery.DeliveryOutcome;
 import com.example.foodrescue.delivery.DestinationPoint;
 import com.example.foodrescue.delivery.DestinationPointRepository;
+import com.example.foodrescue.volunteer.internal.VolunteerProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

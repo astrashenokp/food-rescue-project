@@ -2,7 +2,7 @@ package com.example.foodrescue.lot;
 
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.LotStatusHistory;
-import com.example.foodrescue.common.LotStatusHistoryRepository;
+import com.example.foodrescue.common.internal.LotStatusHistoryRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;

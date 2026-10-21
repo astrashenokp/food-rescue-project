@@ -1,7 +1,8 @@
-package com.example.foodrescue.volunteer;
+package com.example.foodrescue.volunteer.internal;
 
 import com.example.foodrescue.delivery.DeliveryFinishedEvent;
 import com.example.foodrescue.delivery.DeliveryOutcome;
+import com.example.foodrescue.volunteer.VolunteerService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;

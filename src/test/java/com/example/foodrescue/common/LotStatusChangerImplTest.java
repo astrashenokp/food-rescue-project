@@ -1,5 +1,6 @@
 package com.example.foodrescue.common;
 
+import com.example.foodrescue.common.internal.LotStatusChangerImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

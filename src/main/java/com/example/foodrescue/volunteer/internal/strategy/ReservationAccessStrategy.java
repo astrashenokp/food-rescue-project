@@ -1,6 +1,7 @@
 package com.example.foodrescue.volunteer;
 
 import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.volunteer.internal.VolunteerTier;
 
 import java.time.Instant;
 

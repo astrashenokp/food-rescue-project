@@ -1,5 +1,8 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.common.internal;
 
+import com.example.foodrescue.common.LotStatus;
+import com.example.foodrescue.common.LotStatusHistory;
+import com.example.foodrescue.common.StatusHistoryRecorder;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
