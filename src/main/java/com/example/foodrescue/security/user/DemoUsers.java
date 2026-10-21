@@ -1,7 +1,5 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.security.user;
 
-import com.example.foodrescue.security.user.AppRole;
-import com.example.foodrescue.security.user.AppUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;

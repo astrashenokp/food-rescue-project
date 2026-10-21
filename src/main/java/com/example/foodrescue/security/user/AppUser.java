@@ -1,4 +1,4 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.security.user;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

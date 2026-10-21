@@ -1,5 +1,9 @@
 package com.example.foodrescue.common;
 
+import com.example.foodrescue.security.user.AppRole;
+import com.example.foodrescue.security.user.AppUser;
+import com.example.foodrescue.security.user.JpaUserDetailsService;
+import com.example.foodrescue.security.user.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

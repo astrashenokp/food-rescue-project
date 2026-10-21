@@ -1,6 +1,5 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.security.user;
 
-import com.example.foodrescue.security.user.AppUser;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

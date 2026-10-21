@@ -1,4 +1,4 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.security.user;
 
 public enum AppRole {
     DONOR, VOLUNTEER, COORDINATOR, ADMIN

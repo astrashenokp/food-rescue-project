@@ -1,4 +1,4 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.security.user;
 
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
