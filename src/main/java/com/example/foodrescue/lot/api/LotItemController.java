@@ -1,6 +1,8 @@
-package com.example.foodrescue.lot;
+package com.example.foodrescue.lot.api;
 
 import com.example.foodrescue.common.FoodItemResponse;
+import com.example.foodrescue.lot.FoodItemRequest;
+import com.example.foodrescue.lot.LotItemService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;

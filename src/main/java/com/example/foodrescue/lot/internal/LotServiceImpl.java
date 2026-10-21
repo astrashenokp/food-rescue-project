@@ -1,4 +1,4 @@
-package com.example.foodrescue.lot;
+package com.example.foodrescue.lot.internal;
 
 import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.common.FoodItem;
@@ -8,6 +8,10 @@ import com.example.foodrescue.common.LotRepository;
 import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.LotStatusChanger;
+import com.example.foodrescue.lot.*;
+import com.example.foodrescue.lot.internal.exception.InvalidPickupWindowException;
+import com.example.foodrescue.lot.internal.exception.LotNotDraftException;
+import com.example.foodrescue.lot.internal.strategy.PickupWindowStrategy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

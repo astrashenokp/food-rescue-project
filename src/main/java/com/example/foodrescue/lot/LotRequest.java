@@ -2,6 +2,7 @@ package com.example.foodrescue.lot;
 
 import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.common.StorageCondition;
+import com.example.foodrescue.lot.internal.validation.ValidPickupWindow;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;

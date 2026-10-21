@@ -8,6 +8,8 @@ import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.ItemUnit;
 import com.example.foodrescue.common.StorageCondition;
+import com.example.foodrescue.lot.api.LotController;
+import com.example.foodrescue.lot.internal.exception.LotNotDraftException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;

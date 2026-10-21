@@ -1,4 +1,4 @@
-package com.example.foodrescue.lot;
+package com.example.foodrescue.lot.internal;
 
 import com.example.foodrescue.common.FoodItem;
 import com.example.foodrescue.common.FoodItemRepository;
@@ -7,6 +7,10 @@ import com.example.foodrescue.common.FoodLot;
 import com.example.foodrescue.common.LotNotFoundException;
 import com.example.foodrescue.common.LotRepository;
 import com.example.foodrescue.common.LotStatus;
+import com.example.foodrescue.lot.internal.exception.FoodItemNotFoundException;
+import com.example.foodrescue.lot.FoodItemRequest;
+import com.example.foodrescue.lot.LotItemService;
+import com.example.foodrescue.lot.internal.exception.LotNotDraftException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
