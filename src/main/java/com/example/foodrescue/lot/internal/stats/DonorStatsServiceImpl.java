@@ -1,6 +1,7 @@
-package com.example.foodrescue.lot;
+package com.example.foodrescue.lot.internal.stats;
 
 import com.example.foodrescue.delivery.DeliveryOutcome;
+import com.example.foodrescue.lot.DonorStatsService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

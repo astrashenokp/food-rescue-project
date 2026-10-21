@@ -1,5 +1,7 @@
 package com.example.foodrescue.lot;
 
+import com.example.foodrescue.lot.internal.stats.DonorStats;
+import com.example.foodrescue.lot.internal.stats.DonorStatsRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;

@@ -1,4 +1,4 @@
-package com.example.foodrescue.lot;
+package com.example.foodrescue.lot.internal.stats;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

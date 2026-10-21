@@ -1,6 +1,9 @@
 package com.example.foodrescue.lot;
 
 import com.example.foodrescue.delivery.DeliveryOutcome;
+import com.example.foodrescue.lot.internal.stats.DonorStats;
+import com.example.foodrescue.lot.internal.stats.DonorStatsRepository;
+import com.example.foodrescue.lot.internal.stats.DonorStatsServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

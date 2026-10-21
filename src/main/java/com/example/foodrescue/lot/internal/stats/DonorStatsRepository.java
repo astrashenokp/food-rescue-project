@@ -1,4 +1,4 @@
-package com.example.foodrescue.lot;
+package com.example.foodrescue.lot.internal.stats;
 
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

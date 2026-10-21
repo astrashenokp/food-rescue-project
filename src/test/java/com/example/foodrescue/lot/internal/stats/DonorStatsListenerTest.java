@@ -1,8 +1,8 @@
-package com.example.foodrescue.lot;
+package com.example.foodrescue.lot.internal.stats;
 
 import com.example.foodrescue.delivery.DeliveryFinishedEvent;
 import com.example.foodrescue.delivery.DeliveryOutcome;
-import com.example.foodrescue.lot.internal.stats.DonorStatsListener;
+import com.example.foodrescue.lot.DonorStatsService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
