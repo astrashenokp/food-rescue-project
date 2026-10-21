@@ -1,5 +1,6 @@
-package com.example.foodrescue.lot;
+package com.example.foodrescue.lot.internal.validation;
 
+import com.example.foodrescue.lot.LotRequest;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 

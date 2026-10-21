@@ -1,6 +1,7 @@
 package com.example.foodrescue.lot;
 
 import com.example.foodrescue.common.FoodCategory;
+import com.example.foodrescue.lot.internal.strategy.*;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

@@ -1,4 +1,4 @@
-package com.example.foodrescue.lot;
+package com.example.foodrescue.lot.internal.strategy;
 
 import com.example.foodrescue.common.FoodCategory;
 import org.springframework.stereotype.Component;

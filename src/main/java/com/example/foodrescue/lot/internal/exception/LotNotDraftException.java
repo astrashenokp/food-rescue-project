@@ -1,4 +1,4 @@
-package com.example.foodrescue.lot;
+package com.example.foodrescue.lot.internal.exception;
 
 import com.example.foodrescue.common.ConflictException;
 
