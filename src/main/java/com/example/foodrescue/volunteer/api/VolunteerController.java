@@ -1,5 +1,6 @@
-package com.example.foodrescue.volunteer;
+package com.example.foodrescue.volunteer.api;
 
+import com.example.foodrescue.volunteer.*;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;

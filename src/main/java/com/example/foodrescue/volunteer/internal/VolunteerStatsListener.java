@@ -1,6 +1,7 @@
-package com.example.foodrescue.volunteer;
+package com.example.foodrescue.volunteer.internal;
 
 import com.example.foodrescue.delivery.DeliveryFinishedEvent;
+import com.example.foodrescue.volunteer.VolunteerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.modulith.events.ApplicationModuleListener;

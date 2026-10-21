@@ -1,12 +1,12 @@
 package com.example.foodrescue.volunteer.web;
 
-import com.example.foodrescue.common.JacksonConfig;
-import com.example.foodrescue.common.JwtService;
-import com.example.foodrescue.common.JwtValidatorService;
-import com.example.foodrescue.common.ProblemDetailAccessDeniedHandler;
-import com.example.foodrescue.common.ProblemDetailAuthenticationEntryPoint;
-import com.example.foodrescue.common.SecurityConfig;
-import com.example.foodrescue.common.WebConfig;
+import com.example.foodrescue.infrastructure.config.JacksonConfig;
+import com.example.foodrescue.security.jwt.JwtService;
+import com.example.foodrescue.security.jwt.JwtValidatorService;
+import com.example.foodrescue.security.error.ProblemDetailAccessDeniedHandler;
+import com.example.foodrescue.security.error.ProblemDetailAuthenticationEntryPoint;
+import com.example.foodrescue.security.config.SecurityConfig;
+import com.example.foodrescue.infrastructure.config.WebConfig;
 import com.example.foodrescue.volunteer.VolunteerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

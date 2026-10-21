@@ -1,6 +1,7 @@
-package com.example.foodrescue.volunteer;
+package com.example.foodrescue.volunteer.internal;
 
 import com.example.foodrescue.common.DemoData;
+import com.example.foodrescue.volunteer.TransportType;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;

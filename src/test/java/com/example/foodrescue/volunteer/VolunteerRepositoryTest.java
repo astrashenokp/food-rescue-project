@@ -2,6 +2,8 @@ package com.example.foodrescue.volunteer;
 
 import com.example.foodrescue.delivery.DestinationPoint;
 import com.example.foodrescue.delivery.DestinationPointRepository;
+import com.example.foodrescue.volunteer.internal.VolunteerProfile;
+import com.example.foodrescue.volunteer.internal.VolunteerRepository;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;

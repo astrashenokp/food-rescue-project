@@ -1,5 +1,7 @@
 package com.example.foodrescue.volunteer;
 
+import com.example.foodrescue.volunteer.internal.VolunteerProfile;
+
 import java.util.List;
 import java.util.UUID;
 

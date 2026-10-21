@@ -1,6 +1,7 @@
-package com.example.foodrescue.volunteer;
+package com.example.foodrescue.volunteer.internal;
 
 import com.example.foodrescue.delivery.DestinationPoint;
+import com.example.foodrescue.volunteer.TransportType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

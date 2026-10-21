@@ -1,6 +1,9 @@
 package com.example.foodrescue.volunteer;
 
 import com.example.foodrescue.common.ConflictException;
+import com.example.foodrescue.volunteer.api.VolunteerController;
+import com.example.foodrescue.volunteer.internal.exception.VolunteerHasActiveLotsException;
+import com.example.foodrescue.volunteer.internal.exception.VolunteerNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;

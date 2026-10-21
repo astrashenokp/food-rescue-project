@@ -1,4 +1,4 @@
-package com.example.foodrescue.volunteer;
+package com.example.foodrescue.volunteer.internal;
 
 import com.example.foodrescue.common.FoodLot;
 import com.example.foodrescue.common.LotNotFoundException;
@@ -10,7 +10,12 @@ import com.example.foodrescue.common.SensitiveDataMasker;
 import com.example.foodrescue.delivery.DeliveryOutcome;
 import com.example.foodrescue.delivery.DestinationPoint;
 import com.example.foodrescue.delivery.DestinationPointRepository;
-import com.example.foodrescue.volunteer.internal.VolunteerProfile;
+import com.example.foodrescue.volunteer.*;
+import com.example.foodrescue.volunteer.internal.exception.DuplicateVolunteerException;
+import com.example.foodrescue.volunteer.internal.exception.ReservationDeniedException;
+import com.example.foodrescue.volunteer.internal.exception.VolunteerHasActiveLotsException;
+import com.example.foodrescue.volunteer.internal.exception.VolunteerNotFoundException;
+import com.example.foodrescue.volunteer.internal.strategy.ReservationAccessStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
