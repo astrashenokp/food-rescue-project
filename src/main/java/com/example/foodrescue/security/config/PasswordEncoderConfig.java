@@ -1,4 +1,4 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.security.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,5 +1,9 @@
 package com.example.foodrescue.common;
 
+import com.example.foodrescue.security.jwt.JwtAuthenticationFilter;
+import com.example.foodrescue.security.jwt.JwtValidatorService;
+import com.example.foodrescue.security.user.AppRole;
+import com.example.foodrescue.security.user.AppUser;
 import io.jsonwebtoken.MalformedJwtException;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;

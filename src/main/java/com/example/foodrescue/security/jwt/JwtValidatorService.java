@@ -1,4 +1,4 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.security.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtParser;

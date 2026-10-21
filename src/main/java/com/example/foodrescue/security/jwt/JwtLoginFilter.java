@@ -1,5 +1,7 @@
-package com.example.foodrescue.common;
+package com.example.foodrescue.security.jwt;
 
+import com.example.foodrescue.security.web.AuthResponse;
+import com.example.foodrescue.security.web.LoginRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
