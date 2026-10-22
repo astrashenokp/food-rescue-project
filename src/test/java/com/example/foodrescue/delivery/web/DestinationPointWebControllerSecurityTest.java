@@ -10,6 +10,7 @@ import com.example.foodrescue.security.config.SecurityConfig;
 import com.example.foodrescue.infrastructure.config.WebConfig;
 import com.example.foodrescue.delivery.DeliveryService;
 import com.example.foodrescue.delivery.DestinationPointRequest;
+import com.example.foodrescue.delivery.DestinationPointResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -29,6 +30,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -150,4 +152,55 @@ class DestinationPointWebControllerSecurityTest {
         assertEquals(organizationId, request.getValue().organizationId());
         assertEquals(Set.of(FoodCategory.BAKERY, FoodCategory.VEGETABLES), request.getValue().acceptedCategories());
     }
+
+    @Test
+    @WithMockUser(roles = "COORDINATOR")
+    void coordinatorCanEditExistingPoint() throws Exception {
+        UUID pointId = UUID.randomUUID();
+        UUID organizationId = UUID.randomUUID();
+        when(deliveryService.getDestinationPoint(pointId)).thenReturn(new DestinationPointResponse(
+                pointId, organizationId, "Їдальня", "Київ", "09:00-18:00", Set.of(FoodCategory.BAKERY)));
+
+        mvc.perform(get("/destination-points/{id}/edit", pointId))
+                .andExpect(status().isOk())
+                .andExpect(view().name("delivery/create-form"));
+    }
+
+    @Test
+    @WithMockUser(roles = "COORDINATOR")
+    void coordinatorCanUpdateExistingPoint() throws Exception {
+        UUID pointId = UUID.randomUUID();
+        UUID organizationId = UUID.randomUUID();
+        mvc.perform(post("/destination-points/{id}", pointId).with(csrf())
+                        .param("organizationId", organizationId.toString())
+                        .param("name", "Центр допомоги")
+                        .param("address", "Київ")
+                        .param("workingHours", "10:00-18:00")
+                        .param("acceptedCategories", "BAKERY"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/destination-points"));
+        verify(deliveryService).updateDestinationPoint(org.mockito.ArgumentMatchers.eq(pointId),
+                org.mockito.ArgumentMatchers.any(DestinationPointRequest.class));
+    }
+
+    @Test
+    @WithMockUser(roles = "COORDINATOR")
+    void coordinatorCanDeletePoint() throws Exception {
+        UUID pointId = UUID.randomUUID();
+        mvc.perform(post("/destination-points/{id}/delete", pointId).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/destination-points"));
+        verify(deliveryService).deleteDestinationPoint(pointId);
+    }
+
+    @Test
+    @WithMockUser(roles = "VOLUNTEER")
+    void volunteerCannotEditOrDeletePoint() throws Exception {
+        UUID pointId = UUID.randomUUID();
+        mvc.perform(get("/destination-points/{id}/edit", pointId)).andExpect(status().isForbidden());
+        mvc.perform(post("/destination-points/{id}/delete", pointId).with(csrf()))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(deliveryService);
+    }
+
 }
