@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="uk">
+<head th:replace="~{fragments/layout :: head('Доставки')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="card">
+    <h1>Доставки</h1>
+    <h2>Зарезервовані лоти (очікують отримання)</h2>
+    <table>
+        <thead><tr><th>Лот</th><th>Категорія</th><th>Вага, кг</th><th>Адреса отримання</th><th>Дія</th></tr></thead>
+        <tbody>
+        <tr th:each="lot : ${reservedLots}">
+            <td th:text="${lot.title}">Овочі</td>
+            <td th:text="${lot.category}">VEGETABLES</td>
+            <td th:text="${lot.totalWeightKg}">8</td>
+            <td th:text="${lot.pickupAddress}">Київ</td>
+            <td><a class="btn btn-primary" th:href="@{/deliveries/{id}(id=${lot.id})}">Деталі</a></td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(reservedLots)}"><td colspan="5">Зарезервованих лотів немає.</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Створені доставки</h2>
+    <table>
+        <thead><tr><th>ID лоту</th><th>Статус</th><th>Вага при отриманні, кг</th><th>Час отримання</th><th>Дія</th></tr></thead>
+        <tbody>
+        <tr th:each="delivery : ${deliveries}">
+            <td th:text="${delivery.lotId}">UUID</td>
+            <td th:text="${delivery.lotStatus}">PICKED_UP</td>
+            <td th:text="${delivery.pickupWeightKg}">8</td>
+            <td th:text="${delivery.pickedUpAt == null ? '—' : #temporals.format(delivery.pickedUpAt, 'dd.MM.yyyy HH:mm', 'Europe/Kyiv')}">20.10.2026</td>
+            <td><a class="btn btn-primary" th:href="@{/deliveries/{id}(id=${delivery.lotId})}">Деталі</a></td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(deliveries)}"><td colspan="5">Доставок поки немає.</td></tr>
+        </tbody>
+    </table>
+</main>
+</body>
+</html>

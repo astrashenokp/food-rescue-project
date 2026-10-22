@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="uk">
+<head th:replace="~{fragments/layout :: head('Деталі доставки')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="card">
+    <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+    <h1 th:text="${lot.title}">Деталі лоту</h1>
+    <p><strong>ID лоту:</strong> <span th:text="${lot.id}">UUID</span></p>
+    <p><strong>Категорія:</strong> <span th:text="${lot.category}">BAKERY</span></p>
+    <p><strong>Вага лоту:</strong> <span th:text="${lot.totalWeightKg}">8</span> кг</p>
+    <p><strong>Адреса отримання:</strong> <span th:text="${lot.pickupAddress}">Київ</span></p>
+    <p><strong>Статус:</strong> <span th:text="${lot.status}">RESERVED</span></p>
+    <section th:if="${delivery != null}">
+        <h2>Інформація про доставку</h2>
+        <p><strong>ID волонтера:</strong> <span th:text="${delivery.volunteerId}">UUID</span></p>
+        <p><strong>Фактична вага:</strong> <span th:text="${delivery.pickupWeightKg}">8</span> кг</p>
+        <p><strong>Час отримання:</strong> <span th:text="${#temporals.format(delivery.pickedUpAt, 'dd.MM.yyyy HH:mm', 'Europe/Kyiv')}">20.10.2026</span></p>
+        <p th:if="${delivery.destinationPointId != null}"><strong>ID пункту:</strong> <span th:text="${delivery.destinationPointId}">UUID</span></p>
+        <p th:if="${delivery.deliveredAt != null}"><strong>Час передачі:</strong> <span th:text="${#temporals.format(delivery.deliveredAt, 'dd.MM.yyyy HH:mm', 'Europe/Kyiv')}">20.10.2026</span></p>
+        <p th:if="${delivery.receivedWeightKg != null}"><strong>Підтверджена вага:</strong> <span th:text="${delivery.receivedWeightKg}">8</span> кг</p>
+        <p th:if="${delivery.confirmedAt != null}"><strong>Час підтвердження:</strong> <span th:text="${#temporals.format(delivery.confirmedAt, 'dd.MM.yyyy HH:mm', 'Europe/Kyiv')}">20.10.2026</span></p>
+        <p sec:authorize="hasRole('VOLUNTEER')" th:if="${lot.status.name() == 'DELIVERED'}" class="alert alert-info">
+            Код для підтвердження отримувачем: <strong th:text="${delivery.confirmationCode}">123456</strong>
+        </p>
+    </section>
+
+    <section sec:authorize="hasRole('VOLUNTEER')" th:if="${lot.status.name() == 'RESERVED'}">
+        <h2>Отримати зарезервований лот</h2>
+        <form th:action="@{/deliveries/{id}/pickup(id=${lot.id})}" method="post" th:object="${pickupForm}" novalidate>
+            <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}" th:each="err : ${#fields.globalErrors()}" th:text="${err}"></div>
+            <label for="actualWeightKg">Фактична вага, кг</label>
+            <input id="actualWeightKg" type="number" min="0.1" step="0.01" th:field="*{actualWeightKg}"/>
+            <div class="error" th:if="${#fields.hasErrors('actualWeightKg')}" th:errors="*{actualWeightKg}">Помилка</div>
+            <button type="submit" class="btn btn-success">Зафіксувати отримання</button>
+        </form>
+    </section>
+
+    <section sec:authorize="hasRole('VOLUNTEER')" th:if="${lot.status.name() == 'PICKED_UP'}">
+        <h2>Передати лот до пункту призначення</h2>
+        <form th:action="@{/deliveries/{id}/deliver(id=${lot.id})}" method="post" th:object="${deliverForm}" novalidate>
+            <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}" th:each="err : ${#fields.globalErrors()}" th:text="${err}"></div>
+            <label for="destinationPointId">Пункт призначення</label>
+            <select id="destinationPointId" th:field="*{destinationPointId}">
+                <option value="">Оберіть пункт</option>
+                <option th:each="point : ${points}" th:if="${point.acceptedCategories.contains(lot.category)}"
+                        th:value="${point.id}" th:text="${point.name + ' — ' + point.address}">Їдальня</option>
+            </select>
+            <div class="error" th:if="${#fields.hasErrors('destinationPointId')}" th:errors="*{destinationPointId}">Помилка</div>
+            <p>Доступні лише пункти, які приймають категорію продуктів цього лоту.</p>
+            <button type="submit" class="btn btn-success">Зафіксувати передачу</button>
+        </form>
+    </section>
+
+    <section sec:authorize="hasRole('VOLUNTEER')" th:if="${lot.status.name() == 'DELIVERED'}">
+        <h2>Підтвердити отримання</h2>
+        <form th:action="@{/deliveries/{id}/confirm(id=${lot.id})}" method="post" th:object="${confirmationForm}" novalidate>
+            <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}" th:each="err : ${#fields.globalErrors()}" th:text="${err}"></div>
+            <label for="confirmationCode">Код підтвердження (6 цифр)</label>
+            <input id="confirmationCode" type="text" th:field="*{confirmationCode}" maxlength="6"/>
+            <div class="error" th:if="${#fields.hasErrors('confirmationCode')}" th:errors="*{confirmationCode}">Помилка</div>
+            <label for="receivedWeightKg">Отримана вага, кг</label>
+            <input id="receivedWeightKg" type="number" min="0" step="0.01" th:field="*{receivedWeightKg}"/>
+            <div class="error" th:if="${#fields.hasErrors('receivedWeightKg')}" th:errors="*{receivedWeightKg}">Помилка</div>
+            <button type="submit" class="btn btn-success">Підтвердити отримання</button>
+        </form>
+    </section>
+
+    <h2>Історія статусів лоту</h2>
+    <table>
+        <thead><tr><th>Було</th><th>Стало</th><th>Час зміни</th><th>Причина</th></tr></thead>
+        <tbody>
+        <tr th:each="item : ${history}">
+            <td th:text="${item.fromStatus}">PUBLISHED</td>
+            <td th:text="${item.toStatus}">RESERVED</td>
+            <td th:text="${#temporals.format(item.changedAt, 'dd.MM.yyyy HH:mm', 'Europe/Kyiv')}">20.10.2026</td>
+            <td th:text="${item.comment}">Резервування</td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(history)}"><td colspan="4">Переходів статусу ще немає.</td></tr>
+        </tbody>
+    </table>
+    <a th:href="@{/deliveries}" class="btn btn-secondary">До списку доставок</a>
+</main>
+</body>
+</html>
