@@ -1,5 +1,6 @@
 package com.example.foodrescue.delivery;
 
+import com.example.foodrescue.common.LotResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
@@ -19,6 +20,10 @@ public interface DeliveryService {
 
     @PreAuthorize("hasRole('COORDINATOR')")
     void deleteDestinationPoint(UUID id);
+
+    List<LotResponse> getReservedLots();
+
+    LotResponse getLotOverview(UUID lotId);
 
     List<DeliveryResponse> getDeliveries();
 

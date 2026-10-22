@@ -3,6 +3,7 @@ package com.example.foodrescue.delivery.internal;
 import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.common.FoodLot;
 import com.example.foodrescue.common.LotNotFoundException;
+import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.common.LotRepository;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.LotStatusChanger;
@@ -127,6 +128,22 @@ public class DeliveryServiceImpl implements DeliveryService {
         }
 
         destinationPointRepository.delete(point);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LotResponse> getReservedLots() {
+        return lotRepository.findAllByStatusWithItems(LotStatus.RESERVED).stream()
+                .map(LotResponse::from)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LotResponse getLotOverview(UUID lotId) {
+        return lotRepository.findByIdWithItems(lotId)
+                .map(LotResponse::from)
+                .orElseThrow(() -> new LotNotFoundException(lotId));
     }
 
     @Override
