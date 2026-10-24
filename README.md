@@ -325,3 +325,10 @@ Post-Redirect-Get. Усі POST-форми мають CSRF-токени Thymeleaf
 Для перегляду завантажте демо-сторінку `/deliveries` під `volunteer1`.
 Спершу можна зафіксувати отримання зарезервованого демо-лоту; для передачі
 до пункту призначення координатор має попередньо створити відповідний пункт.
+
+
+## 13. Тестування
+
+Для інтеграційних і end-to-end тестів має працювати Docker Desktop (перевірка: `docker info` без помилок, перший запуск тягне образ `postgres:17-alpine` і Chromium для Playwright, тому потрібен інтернет). `./mvnw test` запускає швидкі тести (`*Test`) і інтеграційні тести через MockMvc на PostgreSQL у Testcontainers, `./mvnw verify` додає end-to-end тести (`*E2EIT`: REST через `RestTestClient` і браузерні через Playwright).
+Тести з Testcontainers беруть спільні налаштування з анотацій `@IntegrationTest` (MockMvc) і `@E2ETest` (запущений сервер): один контекст і один контейнер на групу. Профіль `test` задає окремий секрет JWT, паролі демо-акаунтів тести беруть із `foodrescue.demo.passwords.*`. Перед кожним тестом таблиці очищаються скриптами в `src/test/resources/sql`, тому тести не залежать від демо-даних.
+Звіт про тести лежить у `report-tests.md`, браузерні тести пишуть trace у `target/playwright` (відкривається командою `npx playwright show-trace <файл>`).
