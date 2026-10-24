@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
@@ -75,7 +76,7 @@ class LotFormIntegrationTest {
     @WithMockUser(roles = "DONOR")
     void create_PastPickupWindow_ShouldShowBusinessErrorAndKeepTable() throws Exception {
         String title = uniqueTitle();
-        LocalDateTime past = LocalDateTime.now().minusDays(1);
+        LocalDateTime past = LocalDateTime.now(ZoneOffset.UTC).minusDays(1);
 
         mockMvc.perform(form(title, past, past.plusHours(2)).with(csrf()))
                 .andExpect(status().isOk())
@@ -105,7 +106,7 @@ class LotFormIntegrationTest {
     }
 
     private MockHttpServletRequestBuilder validForm(String title) {
-        LocalDateTime from = LocalDateTime.now().plusHours(2).truncatedTo(ChronoUnit.MINUTES);
+        LocalDateTime from = LocalDateTime.now(ZoneOffset.UTC).plusHours(2).truncatedTo(ChronoUnit.MINUTES);
         return form(title, from, from.plusHours(2));
     }
 
