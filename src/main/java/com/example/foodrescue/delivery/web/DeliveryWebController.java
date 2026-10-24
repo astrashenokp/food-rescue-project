@@ -1,6 +1,7 @@
 package com.example.foodrescue.delivery.web;
 
 import com.example.foodrescue.common.BusinessException;
+import com.example.foodrescue.common.ForbiddenActionException;
 import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.delivery.ConfirmationRequest;
@@ -55,6 +56,8 @@ public class DeliveryWebController {
         if (!errors.hasErrors()) {
             try {
                 deliveryService.pickup(lotId, new PickupRequest(form.actualWeightKg()));
+            } catch (ForbiddenActionException ex) {
+                throw ex;
             } catch (BusinessException ex) {
                 errors.reject("business", ex.getMessage());
             }
@@ -76,6 +79,8 @@ public class DeliveryWebController {
         if (!errors.hasErrors()) {
             try {
                 deliveryService.deliver(lotId, new DeliveryRequest(form.destinationPointId()));
+            } catch (ForbiddenActionException ex) {
+                throw ex;
             } catch (BusinessException ex) {
                 errors.reject("business", ex.getMessage());
             }
@@ -98,6 +103,8 @@ public class DeliveryWebController {
             try {
                 deliveryService.confirm(lotId, new ConfirmationRequest(
                         form.confirmationCode(), form.receivedWeightKg()));
+            } catch (ForbiddenActionException ex) {
+                throw ex;
             } catch (BusinessException ex) {
                 errors.reject("business", ex.getMessage());
             }

@@ -1,5 +1,6 @@
 package com.example.foodrescue.delivery.web;
 
+import com.example.foodrescue.common.ForbiddenActionException;
 import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.common.LotStatus;
@@ -11,6 +12,7 @@ import com.example.foodrescue.delivery.ConfirmationRequest;
 import com.example.foodrescue.delivery.PickupRequest;
 import com.example.foodrescue.infrastructure.config.JacksonConfig;
 import com.example.foodrescue.infrastructure.config.WebConfig;
+import com.example.foodrescue.infrastructure.error.GlobalExceptionHandler;
 import com.example.foodrescue.security.config.SecurityConfig;
 import com.example.foodrescue.security.error.ProblemDetailAccessDeniedHandler;
 import com.example.foodrescue.security.error.ProblemDetailAuthenticationEntryPoint;
@@ -38,6 +40,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -49,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 @WebMvcTest(DeliveryWebController.class)
-@Import({SecurityConfig.class, WebConfig.class, JacksonConfig.class,
+@Import({SecurityConfig.class, WebConfig.class, JacksonConfig.class, GlobalExceptionHandler.class,
         ProblemDetailAuthenticationEntryPoint.class, ProblemDetailAccessDeniedHandler.class})
 class DeliveryWebControllerSecurityTest {
 
@@ -225,4 +228,16 @@ class DeliveryWebControllerSecurityTest {
         assertEquals("123456", captor.getValue().confirmationCode());
     }
 
+
+
+    @Test
+    @WithMockUser(roles = "VOLUNTEER")
+    void pickupOtherVolunteersLot_returnsForbiddenInsteadOfFormError() throws Exception {
+        doThrow(new ForbiddenActionException("Лот зарезервовано іншим волонтером"))
+                .when(deliveryService).pickup(org.mockito.ArgumentMatchers.eq(LOT_ID), any());
+
+        mvc.perform(post("/deliveries/{lotId}/pickup", LOT_ID).with(csrf())
+                        .param("actualWeightKg", "8.00"))
+                .andExpect(status().isForbidden());
+    }
 }
