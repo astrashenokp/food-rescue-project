@@ -25,8 +25,10 @@ public interface DeliveryService {
 
     LotResponse getLotOverview(UUID lotId);
 
+    @PreAuthorize("hasAnyRole('VOLUNTEER', 'COORDINATOR')")
     List<DeliveryResponse> getDeliveries();
 
+    @PreAuthorize("hasAnyRole('VOLUNTEER', 'COORDINATOR')")
     DeliveryResponse getDelivery(UUID lotId);
 
     @PreAuthorize("hasRole('VOLUNTEER')")
