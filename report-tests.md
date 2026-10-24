@@ -6,17 +6,17 @@
 
 | Рівень | Як запускається | Класів | Тестів | Час, с |
 |---|---|---|---|---|
-| Швидкі тести (`*Test`): сервіси, контролери, репозиторії, безпека, `ModulesTest` | `./mvnw test` | 36 | 278 | 14,6 |
-| Інтеграційні тести через MockMvc на PostgreSQL (`@IntegrationTest`) | `./mvnw test` | 3 | 35 | 12,9 |
-| REST end-to-end через `RestTestClient` (`*E2EIT`) | `./mvnw verify` | 1 | 4 | 14,2 |
-| Браузерні тести Playwright (`*E2EIT`) | `./mvnw verify` | 1 | 3 | 3,3 |
-| Разом | | 41 | 320 | |
+| Швидкі тести (`*Test`): сервіси, контролери, репозиторії, безпека, `ModulesTest` | `./mvnw test` | 37 | 295 | 31,9 |
+| Інтеграційні тести через MockMvc на PostgreSQL (`@IntegrationTest`) | `./mvnw test` | 4 | 38 | 27,1 |
+| REST end-to-end через `RestTestClient` (`*E2EIT`) | `./mvnw verify` | 1 | 4 | 31,9 |
+| Браузерні тести Playwright (`*E2EIT`) | `./mvnw verify` | 1 | 3 | 7,9 |
+| Разом | | 43 | 340 | |
 
-У інтеграційних тестах зараз покрито модуль `lot` (CRUD лотів, форма сторінки, `X-Trace-Id`), end-to-end тести теж для `lot`. Тести модулів `volunteer` і `delivery` додаються окремими злиттями, і цю таблицю після них треба оновити.
+У інтеграційних тестах зараз покрито модуль `lot` (CRUD лотів, форма сторінки), `X-Trace-Id` і `CurrentUser`, end-to-end тести для `lot`. Тести модулів `volunteer` і `delivery` додаються окремими злиттями, і цю таблицю після них треба оновити.
 
 ## 2. Час виконання
 
-Повний `./mvnw clean verify`: 57 секунд (у цей час входять збірка, запуск двох контейнерів PostgreSQL і запуск браузера). Дані взято з `target/surefire-reports` і `target/failsafe-reports` (атрибут `time` у `TEST-*.xml`).
+Повний `./mvnw clean verify`: близько хвилини (у цей час входять збірка, запуск двох контейнерів PostgreSQL і запуск браузера). Дані взято з `target/surefire-reports` і `target/failsafe-reports` (атрибут `time` у `TEST-*.xml`).
 
 Найповільніші класи:
 
@@ -31,7 +31,7 @@
 ## 3. Результат `./mvnw verify`
 
 ```
-[INFO] Tests run: 313, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 333, Failures: 0, Errors: 0, Skipped: 0
 [INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
