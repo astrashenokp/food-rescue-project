@@ -59,10 +59,14 @@ class DeliveryRepositoryTest {
     }
 
     private Delivery saveDelivery(FoodLot lot, DestinationPoint point) {
+        return saveDelivery(lot, point, UUID.randomUUID());
+    }
+
+    private Delivery saveDelivery(FoodLot lot, DestinationPoint point, UUID volunteerId) {
         lotRepository.save(lot);
         destinationPointRepository.save(point);
         Delivery delivery = new Delivery(
-                UUID.randomUUID(), lot, UUID.randomUUID(), Instant.parse("2026-09-20T11:00:00Z"), new BigDecimal("10.00"), false);
+                UUID.randomUUID(), lot, volunteerId, Instant.parse("2026-09-20T11:00:00Z"), new BigDecimal("10.00"), false);
         delivery.setDestinationPoint(point);
         delivery.setDeliveredAt(Instant.parse("2026-09-20T11:30:00Z"));
         delivery.setConfirmationCode("123456");
@@ -131,5 +135,39 @@ class DeliveryRepositoryTest {
         loaded.getAcceptedCategories().size();
 
         assertEquals(1, stats.getPrepareStatementCount());
+    }
+
+
+    @Test
+    void findAllByVolunteerIdWithLotAndPoint_returnsOnlyOwnDeliveriesInOneQuery() {
+        UUID volunteer1 = UUID.randomUUID();
+        UUID volunteer2 = UUID.randomUUID();
+        saveDelivery(lot(), point("Центр V1"), volunteer1);
+        saveDelivery(lot(), point("Центр V2"), volunteer2);
+        entityManager.flush();
+        entityManager.clear();
+        Statistics stats = statistics();
+        stats.clear();
+
+        List<Delivery> result = deliveryRepository.findAllByVolunteerIdWithLotAndPoint(volunteer1);
+        result.forEach(d -> {
+            d.getLot().getStatus();
+            d.getDestinationPoint().getName();
+        });
+
+        assertEquals(1, result.size());
+        assertEquals(volunteer1, result.getFirst().getVolunteerId());
+        assertEquals(1, stats.getPrepareStatementCount());
+    }
+
+    @Test
+    void failedConfirmationAttempts_arePersisted() {
+        Delivery delivery = saveDelivery(lot(), point("Центр спроб"));
+        delivery.registerFailedConfirmationAttempt();
+        deliveryRepository.saveAndFlush(delivery);
+        entityManager.clear();
+
+        Delivery loaded = deliveryRepository.findByLotIdWithLot(delivery.getLot().getId()).orElseThrow();
+        assertEquals(1, loaded.getFailedConfirmationAttempts());
     }
 }

@@ -52,6 +52,9 @@ public class Delivery {
     @Column(length = 6)
     private String confirmationCode;
 
+    @Column(nullable = false)
+    private int failedConfirmationAttempts;
+
     private Instant confirmedAt;
 
     @Column(precision = 10, scale = 2)
@@ -120,6 +123,14 @@ public class Delivery {
 
     public void setConfirmationCode(String confirmationCode) {
         this.confirmationCode = confirmationCode;
+    }
+
+    public int getFailedConfirmationAttempts() {
+        return failedConfirmationAttempts;
+    }
+
+    public void registerFailedConfirmationAttempt() {
+        failedConfirmationAttempts++;
     }
 
     public Instant getConfirmedAt() {
