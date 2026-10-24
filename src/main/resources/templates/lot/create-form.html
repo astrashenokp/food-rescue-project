@@ -6,55 +6,55 @@
 <main class="card">
     <h1>Новий лот</h1>
     <form th:action="@{/lots}" th:object="${form}" method="post">
-        <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}" th:each="err : ${#fields.globalErrors()}" th:text="${err}">Помилка</div>
+        <div class="alert alert-danger" role="alert" th:if="${#fields.hasGlobalErrors()}" th:each="err : ${#fields.globalErrors()}" th:text="${err}">Помилка</div>
         <label for="title">Назва</label>
         <input type="text" id="title" th:field="*{title}"/>
-        <div class="error" th:if="${#fields.hasErrors('title')}" th:errors="*{title}">Помилка</div>
+        <div class="error" role="alert" th:if="${#fields.hasErrors('title')}" th:errors="*{title}">Помилка</div>
 
         <label for="category">Категорія</label>
         <select id="category" th:field="*{category}">
             <option value="">Оберіть</option>
             <option th:each="c : ${categories}" th:value="${c}" th:text="${c}">BAKERY</option>
         </select>
-        <div class="error" th:if="${#fields.hasErrors('category')}" th:errors="*{category}">Помилка</div>
+        <div class="error" role="alert" th:if="${#fields.hasErrors('category')}" th:errors="*{category}">Помилка</div>
 
         <label for="itemName">Продукт</label>
         <input type="text" id="itemName" th:field="*{itemName}"/>
-        <div class="error" th:if="${#fields.hasErrors('itemName')}" th:errors="*{itemName}">Помилка</div>
+        <div class="error" role="alert" th:if="${#fields.hasErrors('itemName')}" th:errors="*{itemName}">Помилка</div>
 
         <label for="itemQuantity">Кількість</label>
         <input type="text" id="itemQuantity" th:field="*{itemQuantity}"/>
-        <div class="error" th:if="${#fields.hasErrors('itemQuantity')}" th:errors="*{itemQuantity}">Помилка</div>
+        <div class="error" role="alert" th:if="${#fields.hasErrors('itemQuantity')}" th:errors="*{itemQuantity}">Помилка</div>
 
         <label for="itemUnit">Одиниця</label>
         <select id="itemUnit" th:field="*{itemUnit}">
             <option value="">Оберіть</option>
             <option th:each="u : ${units}" th:value="${u}" th:text="${u}">KG</option>
         </select>
-        <div class="error" th:if="${#fields.hasErrors('itemUnit')}" th:errors="*{itemUnit}">Помилка</div>
+        <div class="error" role="alert" th:if="${#fields.hasErrors('itemUnit')}" th:errors="*{itemUnit}">Помилка</div>
 
         <label for="totalWeightKg">Загальна вага, кг</label>
         <input type="text" id="totalWeightKg" th:field="*{totalWeightKg}"/>
-        <div class="error" th:if="${#fields.hasErrors('totalWeightKg')}" th:errors="*{totalWeightKg}">Помилка</div>
+        <div class="error" role="alert" th:if="${#fields.hasErrors('totalWeightKg')}" th:errors="*{totalWeightKg}">Помилка</div>
 
         <label for="storageCondition">Зберігання</label>
         <select id="storageCondition" th:field="*{storageCondition}">
             <option value="">Оберіть</option>
             <option th:each="s : ${storages}" th:value="${s}" th:text="${s}">ROOM</option>
         </select>
-        <div class="error" th:if="${#fields.hasErrors('storageCondition')}" th:errors="*{storageCondition}">Помилка</div>
+        <div class="error" role="alert" th:if="${#fields.hasErrors('storageCondition')}" th:errors="*{storageCondition}">Помилка</div>
 
         <label for="pickupAddress">Адреса самовивозу</label>
         <input type="text" id="pickupAddress" th:field="*{pickupAddress}"/>
-        <div class="error" th:if="${#fields.hasErrors('pickupAddress')}" th:errors="*{pickupAddress}">Помилка</div>
+        <div class="error" role="alert" th:if="${#fields.hasErrors('pickupAddress')}" th:errors="*{pickupAddress}">Помилка</div>
 
         <label for="pickupFrom">Самовивіз з</label>
         <input type="datetime-local" id="pickupFrom" th:field="*{pickupFrom}"/>
-        <div class="error" th:if="${#fields.hasErrors('pickupFrom')}" th:errors="*{pickupFrom}">Помилка</div>
+        <div class="error" role="alert" th:if="${#fields.hasErrors('pickupFrom')}" th:errors="*{pickupFrom}">Помилка</div>
 
         <label for="pickupTo">Самовивіз до</label>
         <input type="datetime-local" id="pickupTo" th:field="*{pickupTo}"/>
-        <div class="error" th:if="${#fields.hasErrors('pickupTo')}" th:errors="*{pickupTo}">Помилка</div>
+        <div class="error" role="alert" th:if="${#fields.hasErrors('pickupTo')}" th:errors="*{pickupTo}">Помилка</div>
 
         <button type="submit" class="btn btn-success">Створити</button>
         <a th:href="@{/lots}" class="btn btn-secondary">Скасувати</a>

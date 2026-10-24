@@ -4,10 +4,10 @@
 <body>
 <main class="card">
     <h1>Вхід</h1>
-    <div th:if="${param.error}" class="alert alert-danger">Невірне ім’я користувача або пароль.</div>
+    <div th:if="${param.error}" class="alert alert-danger" role="alert">Невірне ім’я користувача або пароль.</div>
     <div th:if="${param.logout}" class="alert alert-info">Ви вийшли із системи.</div>
     <form th:action="@{/login}" method="post">
-        <label for="username">Логін</label>
+        <label for="username">Ім’я користувача</label>
         <input type="text" id="username" name="username" autocomplete="username" required/>
         <label for="password">Пароль</label>
         <input type="password" id="password" name="password" autocomplete="current-password" required/>
