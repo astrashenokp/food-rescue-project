@@ -4,12 +4,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
 @Component
+@EnableConfigurationProperties(DemoProperties.class)
 public class DemoUsers implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DemoUsers.class);
@@ -21,23 +23,26 @@ public class DemoUsers implements ApplicationRunner {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final DemoProperties demoProperties;
 
-    public DemoUsers(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public DemoUsers(UserRepository userRepository, PasswordEncoder passwordEncoder, DemoProperties demoProperties) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.demoProperties = demoProperties;
     }
 
     @Override
     public void run(ApplicationArguments args) {
-        create(DONOR_USER, "donor1", "donorpass1", AppRole.DONOR);
-        create(VOLUNTEER_USER, "volunteer1", "volunteerpass1", AppRole.VOLUNTEER);
-        create(COORDINATOR_USER, "coordinator1", "coordinatorpass1", AppRole.COORDINATOR);
-        create(ADMIN_USER, "admin1", "adminpass1", AppRole.ADMIN);
+        create(DONOR_USER, "donor1", AppRole.DONOR);
+        create(VOLUNTEER_USER, "volunteer1", AppRole.VOLUNTEER);
+        create(COORDINATOR_USER, "coordinator1", AppRole.COORDINATOR);
+        create(ADMIN_USER, "admin1", AppRole.ADMIN);
         log.info("Демо-користувачів створено");
     }
 
-    private void create(UUID id, String username, String password, AppRole role) {
+    private void create(UUID id, String username, AppRole role) {
         if (!userRepository.existsByUsername(username)) {
+            String password = demoProperties.passwords().get(username);
             userRepository.save(new AppUser(id, username, passwordEncoder.encode(password), role));
         }
     }
