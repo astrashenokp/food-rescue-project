@@ -1,5 +1,6 @@
 package com.example.foodrescue.security.user;
 
+import com.example.foodrescue.common.ProfileOwner;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -18,7 +19,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "app_users")
-public class AppUser implements UserDetails {
+public class AppUser implements UserDetails, ProfileOwner {
 
     @Id
     private UUID id;
@@ -39,19 +40,31 @@ public class AppUser implements UserDetails {
     @Column(nullable = false)
     private boolean enabled;
 
+    private UUID profileId;
+
     protected AppUser() {
     }
 
     public AppUser(UUID id, String username, String password, AppRole role) {
+        this(id, username, password, role, null);
+    }
+
+    public AppUser(UUID id, String username, String password, AppRole role, UUID profileId) {
         this.id = id;
         this.username = username;
         this.password = password;
         this.role = role;
         this.enabled = true;
+        this.profileId = profileId;
     }
 
     public UUID getId() {
         return id;
+    }
+
+    @Override
+    public UUID getProfileId() {
+        return profileId;
     }
 
     public AppRole getRole() {
