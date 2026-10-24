@@ -22,11 +22,11 @@
 
 | Клас | Час, с | Чому |
 |---|---|---|
-| `LotApiE2EIT` | 14,2 | перший запуск контексту з реальним сервером і контейнером |
-| `TraceIdIntegrationTest` | 11,9 | перший запуск контексту й контейнера для MockMvc |
-| `LotUiE2EIT` | 3,3 | три сценарії в браузері |
-| `ModulesTest` | 2,3 | перевірка меж модулів Spring Modulith |
-| `GlobalExceptionHandlerTest` | 1,2 | |
+| `LotApiE2EIT` | 31,9 | перший запуск контексту з реальним сервером і контейнером |
+| `CurrentUserIntegrationTest` | 23,6 | перший запуск контексту й контейнера для MockMvc |
+| `LotUiE2EIT` | 7,9 | три сценарії в браузері |
+| `ModulesTest` | 6,1 | перевірка меж модулів Spring Modulith |
+| `DeliveryControllerSecurityTest` | 2,8 | |
 
 ## 3. Результат `./mvnw verify`
 
