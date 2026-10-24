@@ -5,6 +5,7 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 
 class LotPages {
@@ -20,7 +21,7 @@ class LotPages {
     }
 
     void fillForm(String title) {
-        LocalDateTime from = LocalDateTime.now().plusHours(2).truncatedTo(ChronoUnit.MINUTES);
+        LocalDateTime from = LocalDateTime.now(ZoneOffset.UTC).plusHours(2).truncatedTo(ChronoUnit.MINUTES);
         field("Назва").fill(title);
         field("Категорія").selectOption("BAKERY");
         field("Продукт").fill("Хліб");
