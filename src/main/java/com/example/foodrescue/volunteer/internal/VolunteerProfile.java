@@ -143,11 +143,7 @@ public class VolunteerProfile {
     public Set<DestinationPoint> getPreferredPoints() {
         return preferredPoints;
     }
-    /**
-     * Показник відповідальності: % успішних − 2 × запізнення − 10 × зриви.
-     * % успішних = completed / (completed + noShows) × 100; без жодної доставки — 100.
-     * Результат у межах 0-100.
-     */
+
     public int getResponsibilityScore() {
         int total = completedDeliveries + noShows;
         double successPercentage = (total == 0) ? 100.0 : (double) completedDeliveries / total * 100;
@@ -155,9 +151,6 @@ public class VolunteerProfile {
         return (int) Math.round(Math.max(0, Math.min(100, score)));
     }
 
-    /**
-     * Рівень волонтера за відповідальністю.
-     */
     public VolunteerTier getTier() {
         if (isRestricted()) {
             return VolunteerTier.RESTRICTED;
@@ -168,10 +161,6 @@ public class VolunteerProfile {
         return VolunteerTier.STANDARD;
     }
 
-    /**
-     * Обмежений волонтер: понад 3 зриви АБО понад 15% запізнень.
-     * Може брати лише BAKERY і GROCERY.
-     */
     public boolean isRestricted() {
         if (noShows > 3) {
             return true;

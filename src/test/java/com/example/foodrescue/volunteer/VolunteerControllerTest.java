@@ -57,8 +57,6 @@ class VolunteerControllerTest {
                 TransportType.CAR, "Київ, центр", 100, false, 0, 0, 0, List.of());
     }
 
-    // --- POST /volunteers ---
-
     @Test
     void createVolunteer_validRequest_returnsCreated_andCallsService() throws Exception {
         UUID id = UUID.randomUUID();
@@ -76,11 +74,11 @@ class VolunteerControllerTest {
     @Test
     void createVolunteer_invalidBody_returnsBadRequestWithErrors() throws Exception {
         VolunteerRequest invalid = new VolunteerRequest(
-                "І",                  // менше 2 символів
-                "not-an-email",       // невірний формат
-                "123",                // не +380XXXXXXXXX
-                null,                 // обов'язкове
-                "");                  // порожнє
+                "І",
+                "not-an-email",
+                "123",
+                null,
+                "");
 
         mockMvc.perform(post("/api/v1/volunteers")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -101,8 +99,6 @@ class VolunteerControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // --- GET /volunteers ---
-
     @Test
     void getAllVolunteers_returnsOkWithList() throws Exception {
         UUID id = UUID.randomUUID();
@@ -115,8 +111,6 @@ class VolunteerControllerTest {
 
         verify(volunteerService).getAll();
     }
-
-    // --- GET /volunteers/{id} ---
 
     @Test
     void getById_existingVolunteer_returnsOk() throws Exception {
@@ -139,8 +133,6 @@ class VolunteerControllerTest {
         mockMvc.perform(get("/api/v1/volunteers/" + id))
                 .andExpect(status().isNotFound());
     }
-
-    // --- PUT /volunteers/{id} ---
 
     @Test
     void updateVolunteer_validRequest_returnsOk() throws Exception {
@@ -167,8 +159,6 @@ class VolunteerControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // --- DELETE /volunteers/{id} ---
-
     @Test
     void deleteVolunteer_noActiveLots_returnsNoContent() throws Exception {
         UUID id = UUID.randomUUID();
@@ -188,23 +178,15 @@ class VolunteerControllerTest {
                 .andExpect(status().isConflict());
     }
 
-    // --- POST /lots/{id}/reservation ---
-
     @Test
     void reserve_serviceThrowsConflict_returnsConflictStatus() throws Exception {
         UUID lotId = UUID.randomUUID();
-        ReservationRequest req = new ReservationRequest(UUID.randomUUID());
+        doThrow(new ConflictException("Лот " + lotId + ": перехід RESERVED → RESERVED заборонено"))
+                .when(volunteerService).reserve(lotId);
 
-        given(volunteerService.reserve(eq(lotId), any()))
-                .willThrow(new ConflictException("Лот " + lotId + ": перехід RESERVED → RESERVED заборонено"));
-
-        mockMvc.perform(post("/api/v1/lots/" + lotId + "/reservation")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+        mockMvc.perform(post("/api/v1/lots/" + lotId + "/reservation"))
                 .andExpect(status().isConflict());
     }
-
-    // --- PUT /volunteers/{id}/preferred-points/{pointId} ---
 
     @Test
     void addPreferredPoint_returnsOkWithResponse() throws Exception {
@@ -220,8 +202,6 @@ class VolunteerControllerTest {
         verify(volunteerService).addPreferredPoint(id, pointId);
     }
 
-    // --- GET /volunteers/{id}/preferred-points ---
-
     @Test
     void getPreferredPoints_returnsOkWithList() throws Exception {
         UUID id = UUID.randomUUID();
@@ -233,8 +213,6 @@ class VolunteerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("Центр допомоги"));
     }
-
-    // --- DELETE /volunteers/{id}/preferred-points/{pointId} ---
 
     @Test
     void removePreferredPoint_returnsNoContent() throws Exception {

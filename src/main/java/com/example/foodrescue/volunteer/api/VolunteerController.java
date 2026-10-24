@@ -1,6 +1,9 @@
 package com.example.foodrescue.volunteer.api;
 
-import com.example.foodrescue.volunteer.*;
+import com.example.foodrescue.volunteer.PreferredPointResponse;
+import com.example.foodrescue.volunteer.VolunteerRequest;
+import com.example.foodrescue.volunteer.VolunteerResponse;
+import com.example.foodrescue.volunteer.VolunteerService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -55,9 +58,8 @@ public class VolunteerController {
     }
 
     @PostMapping("/lots/{id}/reservation")
-    public ResponseEntity<Void> reserve(@PathVariable UUID id,
-                                        @Valid @RequestBody ReservationRequest request) {
-        volunteerService.reserve(id, request);
+    public ResponseEntity<Void> reserve(@PathVariable UUID id) {
+        volunteerService.reserve(id);
         URI location = URI.create("/api/v1/lots/" + id + "/reservation");
         return ResponseEntity.created(location).build();
     }

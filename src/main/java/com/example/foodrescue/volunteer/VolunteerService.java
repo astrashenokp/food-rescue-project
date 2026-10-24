@@ -1,6 +1,5 @@
 package com.example.foodrescue.volunteer;
 
-import com.example.foodrescue.common.FoodLot;
 import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.delivery.DeliveryOutcome;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,10 +20,10 @@ public interface VolunteerService {
     void delete(UUID id);
 
     @PreAuthorize("hasRole('VOLUNTEER')")
-    FoodLot reserve(UUID lotId, ReservationRequest request);
+    void reserve(UUID lotId);
 
     @PreAuthorize("hasRole('VOLUNTEER')")
-    FoodLot cancelReservation(UUID lotId);
+    void cancelReservation(UUID lotId);
 
     @PreAuthorize("hasRole('VOLUNTEER')")
     List<LotResponse> getAvailableLots();

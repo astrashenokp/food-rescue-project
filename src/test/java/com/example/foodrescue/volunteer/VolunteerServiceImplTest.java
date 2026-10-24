@@ -1,7 +1,9 @@
 package com.example.foodrescue.volunteer;
 
+import com.example.foodrescue.common.CurrentUser;
 import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.common.ForbiddenActionException;
 import com.example.foodrescue.common.InvalidLotStateException;
 import com.example.foodrescue.common.LotNotFoundException;
 import com.example.foodrescue.common.LotRepository;
@@ -73,6 +75,9 @@ class VolunteerServiceImplTest {
     @Mock
     private DestinationPointRepository destinationPointRepository;
 
+    @Mock
+    private CurrentUser currentUser;
+
     private VolunteerServiceImpl service;
 
     @BeforeEach
@@ -83,10 +88,13 @@ class VolunteerServiceImplTest {
                 statusChanger,
                 destinationPointRepository,
                 List.of(new TrustedAccess(), new StandardAccess(), new RestrictedAccess()),
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                currentUser);
     }
 
-    // --- Хелпери ---
+    private void asVolunteer(UUID profileId) {
+        given(currentUser.profileId()).willReturn(profileId);
+    }
 
     private VolunteerProfile volunteer(int completed, int latePickups, int noShows) {
         VolunteerProfile v = new VolunteerProfile(VOLUNTEER_ID);
@@ -123,7 +131,13 @@ class VolunteerServiceImplTest {
         return lot;
     }
 
-    // --- create ---
+    private FoodLot reservedLot() {
+        FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(5), NOW.minus(1, ChronoUnit.HOURS));
+        lot.setStatus(LotStatus.RESERVED);
+        lot.setReservedByVolunteerId(VOLUNTEER_ID);
+        lot.setReservedUntil(NOW.plus(30, ChronoUnit.MINUTES));
+        return lot;
+    }
 
     @Test
     void create_validRequest_savesAndReturnsResponse() {
@@ -159,8 +173,6 @@ class VolunteerServiceImplTest {
         verifyNoInteractions(lotRepository, statusChanger, destinationPointRepository);
     }
 
-    // --- getById ---
-
     @Test
     void getById_existingVolunteer_returnsResponse() {
         VolunteerProfile v = trustedVolunteer();
@@ -186,8 +198,6 @@ class VolunteerServiceImplTest {
         verifyNoInteractions(lotRepository, statusChanger, destinationPointRepository);
     }
 
-    // --- getAll ---
-
     @Test
     void getAll_returnsAllVolunteers() {
         VolunteerProfile v = trustedVolunteer();
@@ -200,8 +210,6 @@ class VolunteerServiceImplTest {
         verify(volunteerRepository).findAllWithPoints();
         verifyNoMoreInteractions(volunteerRepository);
     }
-
-    // --- update ---
 
     @Test
     void update_validRequest_updatesAndReturnsResponse() {
@@ -245,8 +253,6 @@ class VolunteerServiceImplTest {
         assertThrows(VolunteerNotFoundException.class, () -> service.update(VOLUNTEER_ID, request));
     }
 
-    // --- delete ---
-
     @Test
     void delete_noActiveLots_deletesVolunteer() {
         VolunteerProfile v = trustedVolunteer();
@@ -278,20 +284,19 @@ class VolunteerServiceImplTest {
         assertThrows(VolunteerNotFoundException.class, () -> service.delete(VOLUNTEER_ID));
     }
 
-    // --- reserve ---
-
     @Test
     void reserve_trustedVolunteer_reservesSuccessfully() {
+        asVolunteer(VOLUNTEER_ID);
         FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(5), NOW.minus(1, ChronoUnit.HOURS));
         VolunteerProfile v = trustedVolunteer();
         given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
         given(volunteerRepository.findById(VOLUNTEER_ID)).willReturn(Optional.of(v));
         given(lotRepository.save(lot)).willReturn(lot);
 
-        FoodLot result = service.reserve(LOT_ID, new ReservationRequest(VOLUNTEER_ID));
+        service.reserve(LOT_ID);
 
-        assertEquals(VOLUNTEER_ID, result.getReservedByVolunteerId());
-        assertEquals(NOW.plus(30, ChronoUnit.MINUTES), result.getReservedUntil());
+        assertEquals(VOLUNTEER_ID, lot.getReservedByVolunteerId());
+        assertEquals(NOW.plus(30, ChronoUnit.MINUTES), lot.getReservedUntil());
         verify(statusChanger).transition(lot, LotStatus.RESERVED, "Зарезервовано");
         verify(lotRepository).findById(LOT_ID);
         verify(lotRepository).save(lot);
@@ -301,27 +306,29 @@ class VolunteerServiceImplTest {
 
     @Test
     void reserve_restrictedVolunteerOnBakery_reservesSuccessfully() {
+        asVolunteer(VOLUNTEER_ID);
         FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(5), NOW.minus(1, ChronoUnit.HOURS));
         VolunteerProfile v = restrictedVolunteer();
         given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
         given(volunteerRepository.findById(VOLUNTEER_ID)).willReturn(Optional.of(v));
         given(lotRepository.save(lot)).willReturn(lot);
 
-        FoodLot result = service.reserve(LOT_ID, new ReservationRequest(VOLUNTEER_ID));
+        service.reserve(LOT_ID);
 
-        assertEquals(VOLUNTEER_ID, result.getReservedByVolunteerId());
+        assertEquals(VOLUNTEER_ID, lot.getReservedByVolunteerId());
         verify(statusChanger).transition(lot, LotStatus.RESERVED, "Зарезервовано");
     }
 
     @Test
     void reserve_restrictedVolunteerOnPreparedMeal_throwsDenied() {
+        asVolunteer(VOLUNTEER_ID);
         FoodLot lot = publishedLot(FoodCategory.PREPARED_MEAL, BigDecimal.valueOf(5), NOW.minus(1, ChronoUnit.HOURS));
         VolunteerProfile v = restrictedVolunteer();
         given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
         given(volunteerRepository.findById(VOLUNTEER_ID)).willReturn(Optional.of(v));
 
         assertThrows(ReservationDeniedException.class,
-                () -> service.reserve(LOT_ID, new ReservationRequest(VOLUNTEER_ID)));
+                () -> service.reserve(LOT_ID));
 
         verify(lotRepository, never()).save(any());
         verifyNoInteractions(statusChanger);
@@ -329,13 +336,14 @@ class VolunteerServiceImplTest {
 
     @Test
     void reserve_standardVolunteerBigLotInEarlyWindow_throwsDenied() {
+        asVolunteer(VOLUNTEER_ID);
         FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(25), NOW.minus(5, ChronoUnit.MINUTES));
         VolunteerProfile v = standardVolunteer();
         given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
         given(volunteerRepository.findById(VOLUNTEER_ID)).willReturn(Optional.of(v));
 
         assertThrows(ReservationDeniedException.class,
-                () -> service.reserve(LOT_ID, new ReservationRequest(VOLUNTEER_ID)));
+                () -> service.reserve(LOT_ID));
 
         verify(lotRepository, never()).save(any());
         verifyNoInteractions(statusChanger);
@@ -343,50 +351,54 @@ class VolunteerServiceImplTest {
 
     @Test
     void reserve_standardVolunteerBigLotAfterEarlyWindow_reservesSuccessfully() {
+        asVolunteer(VOLUNTEER_ID);
         FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(25), NOW.minus(15, ChronoUnit.MINUTES));
         VolunteerProfile v = standardVolunteer();
         given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
         given(volunteerRepository.findById(VOLUNTEER_ID)).willReturn(Optional.of(v));
         given(lotRepository.save(lot)).willReturn(lot);
 
-        FoodLot result = service.reserve(LOT_ID, new ReservationRequest(VOLUNTEER_ID));
+        service.reserve(LOT_ID);
 
-        assertEquals(VOLUNTEER_ID, result.getReservedByVolunteerId());
+        assertEquals(VOLUNTEER_ID, lot.getReservedByVolunteerId());
         verify(statusChanger).transition(lot, LotStatus.RESERVED, "Зарезервовано");
     }
 
     @Test
     void reserve_trustedVolunteerBigLotInEarlyWindow_reservesSuccessfully() {
+        asVolunteer(VOLUNTEER_ID);
         FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(25), NOW.minus(5, ChronoUnit.MINUTES));
         VolunteerProfile v = trustedVolunteer();
         given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
         given(volunteerRepository.findById(VOLUNTEER_ID)).willReturn(Optional.of(v));
         given(lotRepository.save(lot)).willReturn(lot);
 
-        FoodLot result = service.reserve(LOT_ID, new ReservationRequest(VOLUNTEER_ID));
+        service.reserve(LOT_ID);
 
-        assertEquals(VOLUNTEER_ID, result.getReservedByVolunteerId());
+        assertEquals(VOLUNTEER_ID, lot.getReservedByVolunteerId());
         verify(statusChanger).transition(lot, LotStatus.RESERVED, "Зарезервовано");
     }
 
     @Test
     void reserve_lotNotFound_throwsLotNotFoundException() {
+        asVolunteer(VOLUNTEER_ID);
         given(lotRepository.findById(LOT_ID)).willReturn(Optional.empty());
 
         assertThrows(LotNotFoundException.class,
-                () -> service.reserve(LOT_ID, new ReservationRequest(VOLUNTEER_ID)));
+                () -> service.reserve(LOT_ID));
 
         verifyNoInteractions(volunteerRepository, statusChanger);
     }
 
     @Test
     void reserve_volunteerNotFound_throwsVolunteerNotFoundException() {
+        asVolunteer(VOLUNTEER_ID);
         FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(5), NOW.minus(1, ChronoUnit.HOURS));
         given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
         given(volunteerRepository.findById(VOLUNTEER_ID)).willReturn(Optional.empty());
 
         assertThrows(VolunteerNotFoundException.class,
-                () -> service.reserve(LOT_ID, new ReservationRequest(VOLUNTEER_ID)));
+                () -> service.reserve(LOT_ID));
 
         verify(lotRepository, never()).save(any());
         verifyNoInteractions(statusChanger);
@@ -394,6 +406,7 @@ class VolunteerServiceImplTest {
 
     @Test
     void reserve_invalidTransition_doesNotSaveOrSetFields() {
+        asVolunteer(VOLUNTEER_ID);
         FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(5), NOW.minus(1, ChronoUnit.HOURS));
         VolunteerProfile v = trustedVolunteer();
         given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
@@ -402,27 +415,32 @@ class VolunteerServiceImplTest {
                 .when(statusChanger).transition(lot, LotStatus.RESERVED, "Зарезервовано");
 
         assertThrows(InvalidLotStateException.class,
-                () -> service.reserve(LOT_ID, new ReservationRequest(VOLUNTEER_ID)));
+                () -> service.reserve(LOT_ID));
 
         assertNull(lot.getReservedByVolunteerId());
         verify(lotRepository, never()).save(any());
     }
 
-    // --- cancelReservation ---
+    @Test
+    void reserve_userWithoutProfile_throwsForbidden() {
+        asVolunteer(null);
+
+        assertThrows(ForbiddenActionException.class, () -> service.reserve(LOT_ID));
+
+        verifyNoInteractions(lotRepository, volunteerRepository, statusChanger);
+    }
 
     @Test
     void cancelReservation_reservedLot_clearsReservationAndSaves() {
-        FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(5), NOW.minus(1, ChronoUnit.HOURS));
-        lot.setStatus(LotStatus.RESERVED);
-        lot.setReservedByVolunteerId(VOLUNTEER_ID);
-        lot.setReservedUntil(NOW.plus(30, ChronoUnit.MINUTES));
+        asVolunteer(VOLUNTEER_ID);
+        FoodLot lot = reservedLot();
         given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
         given(lotRepository.save(lot)).willReturn(lot);
 
-        FoodLot result = service.cancelReservation(LOT_ID);
+        service.cancelReservation(LOT_ID);
 
-        assertNull(result.getReservedByVolunteerId());
-        assertNull(result.getReservedUntil());
+        assertNull(lot.getReservedByVolunteerId());
+        assertNull(lot.getReservedUntil());
         verify(statusChanger).transition(lot, LotStatus.PUBLISHED, "Резерв скасовано");
         verify(lotRepository).save(lot);
         verifyNoInteractions(volunteerRepository);
@@ -438,7 +456,7 @@ class VolunteerServiceImplTest {
     }
 
     @Test
-    void cancelReservation_invalidTransition_doesNotSave() {
+    void cancelReservation_notReservedLot_throwsInvalidStateAndDoesNotSave() {
         FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(5), NOW.minus(1, ChronoUnit.HOURS));
         given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
         doThrow(new InvalidLotStateException("перехід заборонено"))
@@ -450,7 +468,30 @@ class VolunteerServiceImplTest {
         verifyNoInteractions(volunteerRepository);
     }
 
-    // --- recordOutcome ---
+    @Test
+    void cancelReservation_otherVolunteer_throwsForbiddenAndKeepsReservation() {
+        asVolunteer(UUID.randomUUID());
+        FoodLot lot = reservedLot();
+        given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
+
+        assertThrows(ForbiddenActionException.class, () -> service.cancelReservation(LOT_ID));
+
+        assertEquals(VOLUNTEER_ID, lot.getReservedByVolunteerId());
+        verify(lotRepository, never()).save(any());
+        verifyNoInteractions(statusChanger);
+    }
+
+    @Test
+    void cancelReservation_userWithoutProfile_throwsForbidden() {
+        asVolunteer(null);
+        FoodLot lot = reservedLot();
+        given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
+
+        assertThrows(ForbiddenActionException.class, () -> service.cancelReservation(LOT_ID));
+
+        verify(lotRepository, never()).save(any());
+        verifyNoInteractions(statusChanger);
+    }
 
     @Test
     void recordOutcome_confirmed_callsIncrementCompleted() {
@@ -495,8 +536,6 @@ class VolunteerServiceImplTest {
         verify(volunteerRepository, never()).incrementNoShows(any());
     }
 
-    // --- addPreferredPoint ---
-
     @Test
     void addPreferredPoint_validData_addsPointAndReturnsResponse() {
         VolunteerProfile v = trustedVolunteer();
@@ -537,8 +576,6 @@ class VolunteerServiceImplTest {
         verify(volunteerRepository, never()).save(any());
     }
 
-    // --- removePreferredPoint ---
-
     @Test
     void removePreferredPoint_existingPoint_removesIt() {
         VolunteerProfile v = trustedVolunteer();
@@ -566,8 +603,6 @@ class VolunteerServiceImplTest {
         verify(volunteerRepository, never()).save(any());
     }
 
-    // --- getPreferredPoints ---
-
     @Test
     void getPreferredPoints_returnsPointsList() {
         VolunteerProfile v = trustedVolunteer();
@@ -582,8 +617,6 @@ class VolunteerServiceImplTest {
         assertEquals(1, result.size());
         assertEquals("Центр допомоги", result.get(0).name());
     }
-
-    // --- getAvailableLots / getReservations ---
 
     @Test
     void getAvailableLots_returnsPublishedLots() {

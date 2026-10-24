@@ -1,8 +1,6 @@
 package com.example.foodrescue.volunteer.web;
 
 import com.example.foodrescue.common.BusinessException;
-import com.example.foodrescue.common.DemoData;
-import com.example.foodrescue.volunteer.ReservationRequest;
 import com.example.foodrescue.volunteer.VolunteerService;
 import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
@@ -42,7 +40,7 @@ public class ReservationWebController {
             return "volunteer/reservations";
         }
         try {
-            volunteerService.reserve(form.lotId(), new ReservationRequest(DemoData.DEMO_VOLUNTEER));
+            volunteerService.reserve(form.lotId());
         } catch (BusinessException ex) {
             bindingResult.reject("business", ex.getMessage());
             addPageData(model);

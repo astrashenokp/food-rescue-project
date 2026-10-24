@@ -26,7 +26,6 @@ import org.springframework.web.context.WebApplicationContext;
 
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
@@ -87,16 +86,10 @@ class VolunteerControllerSecurityTest {
         mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     }
 
-    private String reservationBody() {
-        return "{\"volunteerId\":\"" + UUID.randomUUID() + "\"}";
-    }
-
     @Test
     void reserve_withoutToken_returnsUnauthorizedProblemDetail() throws Exception {
         UUID lotId = UUID.randomUUID();
-        mockMvc.perform(post("/api/v1/lots/" + lotId + "/reservation")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(reservationBody()))
+        mockMvc.perform(post("/api/v1/lots/" + lotId + "/reservation"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.status").value(401))
@@ -109,9 +102,7 @@ class VolunteerControllerSecurityTest {
     @WithMockUser(roles = "DONOR")
     void reserve_asDonor_returnsForbiddenProblemDetail() throws Exception {
         UUID lotId = UUID.randomUUID();
-        mockMvc.perform(post("/api/v1/lots/" + lotId + "/reservation")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(reservationBody()))
+        mockMvc.perform(post("/api/v1/lots/" + lotId + "/reservation"))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.status").value(403));
@@ -123,12 +114,10 @@ class VolunteerControllerSecurityTest {
     @WithMockUser(roles = "VOLUNTEER")
     void reserve_asVolunteer_returnsCreated() throws Exception {
         UUID lotId = UUID.randomUUID();
-        mockMvc.perform(post("/api/v1/lots/" + lotId + "/reservation")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(reservationBody()))
+        mockMvc.perform(post("/api/v1/lots/" + lotId + "/reservation"))
                 .andExpect(status().isCreated());
 
-        verify(volunteerService).reserve(any(UUID.class), any(ReservationRequest.class));
+        verify(volunteerService).reserve(lotId);
     }
 
     @Test

@@ -79,7 +79,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "[\"destinationPointId\", \"volunteerId\", \"lotId\", \"confirmationCode\"].forEach(key => pm.environment.unset(key));",
+              "[\"destinationPointId\", \"lotId\", \"confirmationCode\"].forEach(key => pm.environment.unset(key));",
               "pm.environment.set(\"runId\", pm.variables.replaceIn(\"{{$guid}}\"));",
               "pm.environment.set(\"organizationId\", pm.variables.replaceIn(\"{{$guid}}\"));",
               "pm.environment.set(\"donorOrgId\", pm.variables.replaceIn(\"{{$guid}}\"));",
@@ -144,7 +144,6 @@
               "    pm.expect(location).to.be.a(\"string\").and.not.empty;",
               "    const id = location.substring(location.lastIndexOf(\"/\") + 1);",
               "    pm.expect(id).to.match(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);",
-              "    pm.environment.set(\"volunteerId\", id);",
               "});"
             ]
           }
@@ -302,22 +301,11 @@
       "name": "5. Зарезервувати лот",
       "request": {
         "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
+        "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/lots/{{lotId}}/reservation",
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "lots", "{{lotId}}", "reservation"]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"volunteerId\": \"{{demoVolunteerId}}\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
         }
       },
       "event": [

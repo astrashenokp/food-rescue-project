@@ -29,8 +29,6 @@ class ReservationAccessStrategiesTest {
         return lot;
     }
 
-    // --- TrustedAccess ---
-
     @Test
     void trusted_returnsCorrectTier() {
         assertEquals(VolunteerTier.TRUSTED, new TrustedAccess().tier());
@@ -41,8 +39,6 @@ class ReservationAccessStrategiesTest {
         FoodLot bigLotEarlyWindow = lot(FoodCategory.PREPARED_MEAL, BigDecimal.valueOf(25), NOW.minus(5, ChronoUnit.MINUTES));
         assertTrue(new TrustedAccess().canReserve(bigLotEarlyWindow, NOW));
     }
-
-    // --- StandardAccess ---
 
     @Test
     void standard_returnsCorrectTier() {
@@ -72,8 +68,6 @@ class ReservationAccessStrategiesTest {
         FoodLot bigLot = lot(FoodCategory.BAKERY, BigDecimal.valueOf(20), NOW.minus(10, ChronoUnit.MINUTES));
         assertTrue(new StandardAccess().canReserve(bigLot, NOW));
     }
-
-    // --- RestrictedAccess ---
 
     @Test
     void restricted_returnsCorrectTier() {

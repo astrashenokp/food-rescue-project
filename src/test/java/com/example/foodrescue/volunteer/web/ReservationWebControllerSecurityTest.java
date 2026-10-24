@@ -23,6 +23,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import java.util.UUID;
 
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -89,8 +90,11 @@ class ReservationWebControllerSecurityTest {
     @Test
     @WithMockUser(roles = "VOLUNTEER")
     void validFormRedirectsToList() throws Exception {
+        UUID lotId = UUID.randomUUID();
         mvc.perform(post("/reservations").with(csrf())
-                        .param("lotId", UUID.randomUUID().toString()))
+                        .param("lotId", lotId.toString()))
                 .andExpect(redirectedUrl("/reservations"));
+
+        verify(volunteerService).reserve(lotId);
     }
 }

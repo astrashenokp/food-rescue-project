@@ -109,19 +109,16 @@ class VolunteerRepositoryTest {
 
     @Test
     void findByIdWithPoints_withPreferredPoints_loadsPointsInSingleQuery() {
-        // Додаємо точку призначення
         DestinationPoint point = new DestinationPoint(
                 UUID.randomUUID(), UUID.randomUUID(), "Центр допомоги",
                 "вул. Хрещатик, 1", "09:00-18:00", Set.of());
         em.persist(point);
 
-        // Прив'язуємо до волонтера
         VolunteerProfile profile = em.find(VolunteerProfile.class, volunteerId);
         profile.getPreferredPoints().add(point);
         em.flush();
         em.clear();
 
-        // Перевіряємо N+1: Hibernate statistics
         Statistics stats = statistics();
         stats.clear();
 

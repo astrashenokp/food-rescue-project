@@ -1,16 +1,22 @@
 package com.example.foodrescue.volunteer.internal;
 
+import com.example.foodrescue.common.CurrentUser;
 import com.example.foodrescue.common.FoodLot;
+import com.example.foodrescue.common.ForbiddenActionException;
 import com.example.foodrescue.common.LotNotFoundException;
 import com.example.foodrescue.common.LotRepository;
 import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.common.LotStatus;
 import com.example.foodrescue.common.LotStatusChanger;
+import com.example.foodrescue.common.NotFoundException;
 import com.example.foodrescue.common.SensitiveDataMasker;
 import com.example.foodrescue.delivery.DeliveryOutcome;
 import com.example.foodrescue.delivery.DestinationPoint;
 import com.example.foodrescue.delivery.DestinationPointRepository;
-import com.example.foodrescue.volunteer.*;
+import com.example.foodrescue.volunteer.PreferredPointResponse;
+import com.example.foodrescue.volunteer.VolunteerRequest;
+import com.example.foodrescue.volunteer.VolunteerResponse;
+import com.example.foodrescue.volunteer.VolunteerService;
 import com.example.foodrescue.volunteer.internal.exception.DuplicateVolunteerException;
 import com.example.foodrescue.volunteer.internal.exception.ReservationDeniedException;
 import com.example.foodrescue.volunteer.internal.exception.VolunteerHasActiveLotsException;
@@ -43,19 +49,22 @@ public class VolunteerServiceImpl implements VolunteerService {
     private final DestinationPointRepository destinationPointRepository;
     private final Map<VolunteerTier, ReservationAccessStrategy> accessStrategies = new EnumMap<>(VolunteerTier.class);
     private final Clock clock;
+    private final CurrentUser currentUser;
 
     public VolunteerServiceImpl(VolunteerRepository volunteerRepository,
                                 LotRepository lotRepository,
                                 LotStatusChanger statusChanger,
                                 DestinationPointRepository destinationPointRepository,
                                 List<ReservationAccessStrategy> accessStrategies,
-                                Clock clock) {
+                                Clock clock,
+                                CurrentUser currentUser) {
         this.volunteerRepository = volunteerRepository;
         this.lotRepository = lotRepository;
         this.statusChanger = statusChanger;
         this.destinationPointRepository = destinationPointRepository;
         accessStrategies.forEach(strategy -> this.accessStrategies.put(strategy.tier(), strategy));
         this.clock = clock;
+        this.currentUser = currentUser;
     }
 
     @Override
@@ -126,17 +135,14 @@ public class VolunteerServiceImpl implements VolunteerService {
         log.info("Видалено волонтера {}", id);
     }
 
-    /**
-     * Резервування лоту за волонтером.
-     * @Version на FoodLot дає оптимістичне блокування замість synchronized.
-     */
     @Override
     @Transactional
-    public FoodLot reserve(UUID lotId, ReservationRequest request) {
+    public void reserve(UUID lotId) {
+        UUID volunteerId = currentVolunteerId();
         FoodLot lot = lotRepository.findById(lotId)
                 .orElseThrow(() -> new LotNotFoundException(lotId));
-        VolunteerProfile volunteer = volunteerRepository.findById(request.volunteerId())
-                .orElseThrow(() -> new VolunteerNotFoundException(request.volunteerId()));
+        VolunteerProfile volunteer = volunteerRepository.findById(volunteerId)
+                .orElseThrow(() -> new VolunteerNotFoundException(volunteerId));
 
         VolunteerTier tier = volunteer.getTier();
         ReservationAccessStrategy strategy = accessStrategies.get(tier);
@@ -147,25 +153,23 @@ public class VolunteerServiceImpl implements VolunteerService {
                     "Волонтер " + volunteer.getId() + " (рівень " + tier + ") не може зарезервувати лот " + lotId);
         }
 
-        // Перехід PUBLISHED → RESERVED (422, якщо перехід недозволений)
         statusChanger.transition(lot, LotStatus.RESERVED, "Зарезервовано");
 
-        lot.setReservedByVolunteerId(request.volunteerId());
+        lot.setReservedByVolunteerId(volunteerId);
         lot.setReservedUntil(now.plus(RESERVE_DURATION_MINUTES, ChronoUnit.MINUTES));
         lotRepository.save(lot);
-        log.info("Волонтер {} зарезервував лот {}", request.volunteerId(), lotId);
-
-        return lot;
+        log.info("Волонтер {} зарезервував лот {}", volunteerId, lotId);
     }
 
-    /**
-     * Скасування резервування: RESERVED → PUBLISHED, очищення полів резерву.
-     */
     @Override
     @Transactional
-    public FoodLot cancelReservation(UUID lotId) {
+    public void cancelReservation(UUID lotId) {
         FoodLot lot = lotRepository.findById(lotId)
                 .orElseThrow(() -> new LotNotFoundException(lotId));
+        UUID reservedBy = lot.getReservedByVolunteerId();
+        if (reservedBy != null && !reservedBy.equals(currentVolunteerId())) {
+            throw new ForbiddenActionException("Лот зарезервовано іншим волонтером");
+        }
 
         statusChanger.transition(lot, LotStatus.PUBLISHED, "Резерв скасовано");
 
@@ -173,8 +177,6 @@ public class VolunteerServiceImpl implements VolunteerService {
         lot.setReservedUntil(null);
         lotRepository.save(lot);
         log.info("Резерв скасовано на лоті {}", lotId);
-
-        return lot;
     }
 
     @Override
@@ -191,10 +193,6 @@ public class VolunteerServiceImpl implements VolunteerService {
                 .toList();
     }
 
-    /**
-     * Оновлює лічильники волонтера атомарними UPDATE-запитами.
-     * Без synchronized, без read-modify-write — потокобезпечно.
-     */
     @Override
     @Transactional
     public void recordOutcome(UUID volunteerId, DeliveryOutcome outcome, boolean latePickup) {
@@ -219,7 +217,7 @@ public class VolunteerServiceImpl implements VolunteerService {
         VolunteerProfile profile = volunteerRepository.findByIdWithPoints(volunteerId)
                 .orElseThrow(() -> new VolunteerNotFoundException(volunteerId));
         DestinationPoint point = destinationPointRepository.findById(pointId)
-                .orElseThrow(() -> new com.example.foodrescue.common.NotFoundException(
+                .orElseThrow(() -> new NotFoundException(
                         "Точку призначення " + pointId + " не знайдено"));
 
         profile.getPreferredPoints().add(point);
@@ -236,7 +234,7 @@ public class VolunteerServiceImpl implements VolunteerService {
 
         boolean removed = profile.getPreferredPoints().removeIf(p -> p.getId().equals(pointId));
         if (!removed) {
-            throw new com.example.foodrescue.common.NotFoundException(
+            throw new NotFoundException(
                     "Точку " + pointId + " не знайдено у бажаних точках волонтера " + volunteerId);
         }
 
@@ -251,5 +249,13 @@ public class VolunteerServiceImpl implements VolunteerService {
         return profile.getPreferredPoints().stream()
                 .map(p -> new PreferredPointResponse(p.getId(), p.getName()))
                 .toList();
+    }
+
+    private UUID currentVolunteerId() {
+        UUID profileId = currentUser.profileId();
+        if (profileId == null) {
+            throw new ForbiddenActionException("Користувач не пов'язаний з профілем волонтера");
+        }
+        return profileId;
     }
 }

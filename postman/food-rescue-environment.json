@@ -5,11 +5,6 @@
       "key": "baseUrl",
       "value": "http://localhost:8080",
       "enabled": true
-    },
-    {
-      "key": "demoVolunteerId",
-      "value": "00000000-0000-0000-0000-0000000000b1",
-      "enabled": true
     }
   ],
   "_postman_variable_scope": "environment"
