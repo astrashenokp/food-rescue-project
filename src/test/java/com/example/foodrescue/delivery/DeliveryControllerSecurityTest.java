@@ -1,7 +1,9 @@
 package com.example.foodrescue.delivery;
 
+import com.example.foodrescue.common.ForbiddenActionException;
 import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.infrastructure.config.JacksonConfig;
+import com.example.foodrescue.infrastructure.error.GlobalExceptionHandler;
 import com.example.foodrescue.security.jwt.JwtService;
 import com.example.foodrescue.security.jwt.JwtValidatorService;
 import com.example.foodrescue.common.LotStatus;
@@ -36,6 +38,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -50,6 +53,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({
         SecurityConfig.class,
         JacksonConfig.class,
+        GlobalExceptionHandler.class,
         ProblemDetailAuthenticationEntryPoint.class,
         ProblemDetailAccessDeniedHandler.class,
         DeliveryControllerSecurityTest.DeliveryServiceConfig.class
@@ -162,5 +166,31 @@ class DeliveryControllerSecurityTest {
                 .andExpect(status().isOk());
 
         verify(deliveryServiceMock).pickup(eq(lotId), any());
+    }
+
+
+    @Test
+    @WithMockUser(roles = "DONOR")
+    void donor_cannotSeeDeliveriesEvenWhenLoggedIn() throws Exception {
+        mockMvc.perform(get("/api/v1/deliveries"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/deliveries/" + UUID.randomUUID()))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(deliveryServiceMock);
+    }
+
+
+    @Test
+    @WithMockUser(roles = "VOLUNTEER")
+    void volunteer_pickingUpSomeoneElsesLot_returnsForbiddenProblemDetail() throws Exception {
+        UUID lotId = UUID.randomUUID();
+        doThrow(new ForbiddenActionException("Лот зарезервовано іншим волонтером"))
+                .when(deliveryServiceMock).pickup(eq(lotId), any());
+
+        mockMvc.perform(post("/api/v1/lots/" + lotId + "/pickup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new PickupRequest(new BigDecimal("3.5")))))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
     }
 }
