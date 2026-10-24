@@ -312,7 +312,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"volunteerId\": \"{{volunteerId}}\"\n}",
+          "raw": "{\n  \"volunteerId\": \"{{demoVolunteerId}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
