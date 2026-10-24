@@ -28,6 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @WebMvcTest(LotWebController.class)
 @Import({
@@ -67,6 +68,21 @@ class LotWebControllerSecurityTest {
     @Test
     void anonymousIsRedirectedToLogin() throws Exception {
         mvc.perform(get("/lots")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    @WithMockUser(roles = "VOLUNTEER")
+    void volunteerCannotOpenCreateForm() throws Exception {
+        mvc.perform(get("/lots/new")).andExpect(status().isForbidden());
+        verifyNoInteractions(lotService);
+    }
+
+    @Test
+    @WithMockUser(roles = "VOLUNTEER")
+    void volunteerCannotSubmitInvalidCreateForm() throws Exception {
+        mvc.perform(post("/lots").with(csrf()).param("title", ""))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(lotService);
     }
 
     @Test

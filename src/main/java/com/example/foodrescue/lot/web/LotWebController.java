@@ -9,6 +9,7 @@ import com.example.foodrescue.lot.FoodItemRequest;
 import com.example.foodrescue.lot.LotRequest;
 import com.example.foodrescue.lot.LotService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -38,6 +39,7 @@ public class LotWebController {
     }
 
     @GetMapping("/new")
+    @PreAuthorize("hasRole('DONOR')")
     public String showCreateForm(Model model) {
         model.addAttribute("form", new CreateLotForm("", null, "", null, null, null, null, "", null, null));
         addOptions(model);
@@ -45,6 +47,7 @@ public class LotWebController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('DONOR')")
     public String create(
             @Valid @ModelAttribute("form") CreateLotForm form,
             BindingResult bindingResult,

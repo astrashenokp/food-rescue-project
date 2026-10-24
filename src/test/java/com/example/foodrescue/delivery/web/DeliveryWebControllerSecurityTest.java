@@ -1,6 +1,7 @@
 package com.example.foodrescue.delivery.web;
 
 import com.example.foodrescue.common.ForbiddenActionException;
+import com.example.foodrescue.common.LotNotFoundException;
 import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.common.LotStatus;
@@ -13,6 +14,7 @@ import com.example.foodrescue.delivery.PickupRequest;
 import com.example.foodrescue.infrastructure.config.JacksonConfig;
 import com.example.foodrescue.infrastructure.config.WebConfig;
 import com.example.foodrescue.infrastructure.error.GlobalExceptionHandler;
+import com.example.foodrescue.infrastructure.error.WebBusinessErrorAdvice;
 import com.example.foodrescue.security.config.SecurityConfig;
 import com.example.foodrescue.security.error.ProblemDetailAccessDeniedHandler;
 import com.example.foodrescue.security.error.ProblemDetailAuthenticationEntryPoint;
@@ -52,7 +54,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 @WebMvcTest(DeliveryWebController.class)
-@Import({SecurityConfig.class, WebConfig.class, JacksonConfig.class, GlobalExceptionHandler.class,
+@Import({SecurityConfig.class, WebConfig.class, JacksonConfig.class, GlobalExceptionHandler.class, WebBusinessErrorAdvice.class,
         ProblemDetailAuthenticationEntryPoint.class, ProblemDetailAccessDeniedHandler.class})
 class DeliveryWebControllerSecurityTest {
 
@@ -109,6 +111,25 @@ class DeliveryWebControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("delivery/details"));
         verify(deliveryService).getHistory(LOT_ID);
+    }
+
+    @Test
+    @WithMockUser(roles = "VOLUNTEER")
+    void unknownLotShowsHtml404Page() throws Exception {
+        when(deliveryService.getLotOverview(LOT_ID)).thenThrow(new LotNotFoundException(LOT_ID));
+        mvc.perform(get("/deliveries/{lotId}", LOT_ID))
+                .andExpect(status().isNotFound())
+                .andExpect(view().name("error/404"));
+    }
+
+    @Test
+    @WithMockUser(roles = "VOLUNTEER")
+    void forbiddenBusinessActionShowsHtml403Page() throws Exception {
+        when(deliveryService.getLotOverview(LOT_ID))
+                .thenThrow(new ForbiddenActionException("Дію заборонено"));
+        mvc.perform(get("/deliveries/{lotId}", LOT_ID))
+                .andExpect(status().isForbidden())
+                .andExpect(view().name("error/403"));
     }
 
     @Test

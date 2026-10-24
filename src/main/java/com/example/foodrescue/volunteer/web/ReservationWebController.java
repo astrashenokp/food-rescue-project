@@ -3,6 +3,7 @@ package com.example.foodrescue.volunteer.web;
 import com.example.foodrescue.common.BusinessException;
 import com.example.foodrescue.volunteer.VolunteerService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -14,6 +15,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 @RequestMapping("/reservations")
+@PreAuthorize("hasRole('VOLUNTEER')")
 public class ReservationWebController {
 
     private final VolunteerService volunteerService;

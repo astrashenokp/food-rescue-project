@@ -24,6 +24,7 @@ import org.springframework.web.context.WebApplicationContext;
 import java.util.UUID;
 
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -70,6 +71,21 @@ class ReservationWebControllerSecurityTest {
     @Test
     void anonymousIsRedirectedToLogin() throws Exception {
         mvc.perform(get("/reservations")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    @WithMockUser(roles = "DONOR")
+    void donorCannotOpenReservationsPage() throws Exception {
+        mvc.perform(get("/reservations")).andExpect(status().isForbidden());
+        verifyNoInteractions(volunteerService);
+    }
+
+    @Test
+    @WithMockUser(roles = "DONOR")
+    void donorCannotSubmitInvalidReservation() throws Exception {
+        mvc.perform(post("/reservations").with(csrf()).param("lotId", ""))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(volunteerService);
     }
 
     @Test
