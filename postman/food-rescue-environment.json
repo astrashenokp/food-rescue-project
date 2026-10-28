@@ -2,6 +2,24 @@
   "name": "Food Rescue localhost",
   "values": [
     {
+      "key": "donorPassword",
+      "value": "donorpass1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "volunteerPassword",
+      "value": "volunteerpass1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "coordinatorPassword",
+      "value": "coordinatorpass1",
+      "type": "default",
+      "enabled": true
+    },
+    {
       "key": "baseUrl",
       "value": "http://localhost:8080",
       "enabled": true
