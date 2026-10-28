@@ -6,11 +6,11 @@
 
 | Рівень | Як запускається | Класів | Тестів | Час, с |
 |---|---|---|---|---|
-| Швидкі тести (`*Test`): сервіси, контролери, репозиторії, безпека, `ModulesTest` | `./mvnw test` | 37 | 295 | 31,9 |
-| Інтеграційні тести через MockMvc на PostgreSQL (`@IntegrationTest`) | `./mvnw test` | 4 | 38 | 27,1 |
-| REST end-to-end через `RestTestClient` (`*E2EIT`) | `./mvnw verify` | 1 | 4 | 31,9 |
-| Браузерні тести Playwright (`*E2EIT`) | `./mvnw verify` | 1 | 3 | 7,9 |
-| Разом | | 43 | 340 | |
+| Швидкі тести (`*Test`): сервіси, контролери, репозиторії, безпека, `ModulesTest` | `./mvnw test` | 37 | 304 | 18,4 |
+| Інтеграційні тести через MockMvc на PostgreSQL (`@IntegrationTest`) | `./mvnw test` | 4 | 40 | 21,2 |
+| REST end-to-end через `RestTestClient` (`*E2EIT`) | `./mvnw verify` | 1 | 4 | 17,3 |
+| Браузерні тести Playwright (`*E2EIT`) | `./mvnw verify` | 1 | 3 | 3,5 |
+| Разом | | 43 | 351 | |
 
 У інтеграційних тестах зараз покрито модуль `lot` (CRUD лотів, форма сторінки), `X-Trace-Id` і `CurrentUser`, end-to-end тести для `lot`. Тести модулів `volunteer` і `delivery` додаються окремими злиттями, і цю таблицю після них треба оновити.
 
@@ -22,16 +22,18 @@
 
 | Клас | Час, с | Чому |
 |---|---|---|
-| `LotApiE2EIT` | 31,9 | перший запуск контексту з реальним сервером і контейнером |
-| `CurrentUserIntegrationTest` | 23,6 | перший запуск контексту й контейнера для MockMvc |
-| `LotUiE2EIT` | 7,9 | три сценарії в браузері |
-| `ModulesTest` | 6,1 | перевірка меж модулів Spring Modulith |
-| `DeliveryControllerSecurityTest` | 2,8 | |
+| `CurrentUserIntegrationTest` | 19,5 | перший запуск контексту й контейнера для MockMvc |
+| `LotApiE2EIT` | 17,3 | перший запуск контексту з реальним сервером і контейнером |
+| `LotUiE2EIT` | 3,5 | три сценарії в браузері |
+| `DeliveryControllerSecurityTest` | 2,5 |  |
+| `ModulesTest` | 2,4 | перевірка меж модулів Spring Modulith |
 
 ## 3. Результат `./mvnw verify`
 
+![Підсумок verify](report-verify.png)
+
 ```
-[INFO] Tests run: 333, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 344, Failures: 0, Errors: 0, Skipped: 0
 [INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```

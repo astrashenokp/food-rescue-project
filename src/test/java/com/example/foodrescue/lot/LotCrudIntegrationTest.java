@@ -2,6 +2,8 @@ package com.example.foodrescue.lot;
 
 import com.example.foodrescue.IntegrationTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -127,6 +129,21 @@ class LotCrudIntegrationTest {
         long before = countLots();
 
         mockMvc.perform(post(LOTS).with(user("volunteer").roles("VOLUNTEER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .content(lotJson(UUID.randomUUID(), uniqueTitle(), 2, 4)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403));
+
+        assertThat(countLots()).isEqualTo(before);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"COORDINATOR", "ADMIN"})
+    void create_AsOtherRoles_ShouldReturnForbiddenAndKeepTable(String role) throws Exception {
+        long before = countLots();
+
+        mockMvc.perform(post(LOTS).with(user("someone").roles(role))
                         .contentType(MediaType.APPLICATION_JSON)
                         .characterEncoding(StandardCharsets.UTF_8)
                         .content(lotJson(UUID.randomUUID(), uniqueTitle(), 2, 4)))
