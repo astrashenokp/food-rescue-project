@@ -18,6 +18,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @PreAuthorize("hasRole('VOLUNTEER')")
 public class ReservationWebController {
 
+    private static final String RESERVATION_ADRESS = "volunteer/reservations";
+
     private final VolunteerService volunteerService;
 
     public ReservationWebController(VolunteerService volunteerService) {
@@ -28,7 +30,7 @@ public class ReservationWebController {
     public String list(Model model) {
         model.addAttribute("form", new ReservationForm(null));
         addPageData(model);
-        return "volunteer/reservations";
+        return RESERVATION_ADRESS;
     }
 
     @PostMapping
@@ -39,14 +41,14 @@ public class ReservationWebController {
             RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
             addPageData(model);
-            return "volunteer/reservations";
+            return RESERVATION_ADRESS;
         }
         try {
             volunteerService.reserve(form.lotId());
         } catch (BusinessException ex) {
             bindingResult.reject("business", ex.getMessage());
             addPageData(model);
-            return "volunteer/reservations";
+            return RESERVATION_ADRESS;
         }
         redirectAttributes.addFlashAttribute("successMessage", "Лот зарезервовано.");
         return "redirect:/reservations";
