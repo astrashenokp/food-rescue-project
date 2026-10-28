@@ -45,7 +45,7 @@ lot        ──►  delivery     (лише подія та `DeliveryOutcome`)
 
 ## 4. Матриця переходів станів лоту
 
-`✓` — перехід дозволений. Порожня клітинка — заборонений. Джерело істини — метод `LotStatus.canTransitionTo`; перевірку виконує `LotStatusChanger` (єдине місце в проєкті). Недозволений перехід дає `InvalidLotStateException` → HTTP 422 у форматі `ProblemDetail`.
+`✓` — перехід дозволений. Порожня клітинка — заборонений. Джерело істини — метод `LotStatus.canTransitionTo`; перевірку виконує `LotStatusChanger` (єдине місце в проєкті). Недозволений перехід дає `InvalidLotStateException` → HTTP 409 у форматі `ProblemDetail`.
 
 | з \ до | DRAFT | PENDING_MODERATION | PUBLISHED | RESERVED | PICKED_UP | DELIVERED | CONFIRMED | DISPUTED | EXPIRED | CANCELLED | FAILED |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -65,7 +65,7 @@ lot        ──►  delivery     (лише подія та `DeliveryOutcome`)
 
 ## 5. Бізнес-правила
 
-HTTP-статуси помилок: **404** — не знайдено, **409** — дублікат або конфлікт, **422** — порушення бізнес-правила чи недозволений перехід, **403** — дію заборонено. Усі помилки повертаються як `ProblemDetail`.
+HTTP-статуси помилок: **404** — не знайдено, **409** — дублікат, конфлікт або недозволений перехід стану, **422** — порушення бізнес-правила, **403** — дію заборонено. Усі помилки повертаються як `ProblemDetail`.
 
 ### 5.1. БК-1: публікація лоту (модуль `lot`)
 
@@ -73,13 +73,13 @@ HTTP-статуси помилок: **404** — не знайдено, **409** �
 |---|---------|---------|------|
 | 1.1 | `pickupTo` пізніше за `pickupFrom`, `pickupFrom` у майбутньому, вікно не коротше за мінімум для категорії (стратегія `PickupWindowStrategy`). Діє і при створенні, і при оновленні | `InvalidPickupWindowException` | 422 |
 | 1.2 | Оновлення (`PUT`) дозволене лише для лота в стані `DRAFT`. Позиції лота при цьому замінюються цілком | `LotNotDraftException` | 409 |
-| 1.3 | Публікація: `DRAFT` → `PUBLISHED` і виставляється `publishedAt`. Якщо в донора не менше 5 лотів і скасовано понад 20%, лот іде в `PENDING_MODERATION`, а `publishedAt` не виставляється | `InvalidLotStateException` | 422 |
-| 1.4 | Скасування дозволене зі станів `DRAFT`, `PENDING_MODERATION`, `PUBLISHED`. З `RESERVED` і далі заборонене | `InvalidLotStateException` | 422 |
+| 1.3 | Публікація: `DRAFT` → `PUBLISHED` і виставляється `publishedAt`. Якщо в донора не менше 5 лотів і скасовано понад 20%, лот іде в `PENDING_MODERATION`, а `publishedAt` не виставляється | `InvalidLotStateException` | 409 |
+| 1.4 | Скасування дозволене зі станів `DRAFT`, `PENDING_MODERATION`, `PUBLISHED`. З `RESERVED` і далі заборонене | `InvalidLotStateException` | 409 |
 | 1.5 | Видалення лота (`DELETE`) і будь-яка зміна його позицій (додати, змінити, видалити) дозволені лише в стані `DRAFT` | `LotNotDraftException` | 409 |
 | | Лот не існує | `LotNotFoundException` | 404 |
 | | Позиція не існує в цьому лоті (зокрема належить іншому лоту) | `FoodItemNotFoundException` | 404 |
 
-Рішення модератора (`approve`): `approved = true` веде в `PUBLISHED` і виставляє `publishedAt`, `approved = false` повертає лот у `DRAFT`. Недозволений перехід за матрицею дає `InvalidLotStateException` (422).
+Рішення модератора (`approve`): `approved = true` веде в `PUBLISHED` і виставляє `publishedAt`, `approved = false` повертає лот у `DRAFT`. Недозволений перехід за матрицею дає `InvalidLotStateException` (409).
 
 Поріг скасувань рахується лише за лотами того самого донора: 1 скасований з 5 це рівно 20%, тому лот публікується, а 2 з 5 це вже модерація. Менше 5 лотів у донора скасування не враховуються взагалі.
 
@@ -91,10 +91,10 @@ HTTP-статуси помилок: **404** — не знайдено, **409** �
 |---|---------|---------|------|
 | 2.1 | Реєстрація: волонтер із таким email уже існує | `DuplicateVolunteerException` | 409 |
 | 2.2 | Волонтера не знайдено: за `id` у шляху (`/volunteers/{id}`) або за профілем користувача, що увійшов (`CurrentUser.profileId()`) | `VolunteerNotFoundException` | 404 |
-| 2.3 | Резервування дозволене лише для лота у стані `PUBLISHED`. У разі успіху виставляються `reservedByVolunteerId` (профіль користувача, що увійшов; тіла запит не має) та `reservedUntil = now + 30 хв` | `InvalidLotStateException` | 422 |
+| 2.3 | Резервування дозволене лише для лота у стані `PUBLISHED`. У разі успіху виставляються `reservedByVolunteerId` (профіль користувача, що увійшов; тіла запит не має) та `reservedUntil = now + 30 хв` | `InvalidLotStateException` | 409 |
 | 2.4 | Обмежений волонтер (`RESTRICTED`) має доступ лише до категорій `BAKERY` та `GROCERY` (стратегія `ReservationAccessStrategy`) | `ReservationDeniedException` | 403 |
 | 2.5 | Великий лот (≥ 20 кг) перші 10 хвилин з моменту публікації доступний тільки волонтерам рівнів `TRUSTED` | `ReservationDeniedException` | 403 |
-| 2.6 | Скасування резервації дозволене лише для лота у стані `RESERVED`. Лот повертається в `PUBLISHED`, а поля резервації очищуються | `InvalidLotStateException` | 422 |
+| 2.6 | Скасування резервації дозволене лише для лота у стані `RESERVED`. Лот повертається в `PUBLISHED`, а поля резервації очищуються | `InvalidLotStateException` | 409 |
 | 2.7 | Оновлення волонтера (`PUT`): email має бути унікальним серед інших користувачів (`existsByEmailAndIdNot`) | `DuplicateVolunteerException` | 409 |
 | 2.8 | Видалення волонтера (`DELETE`): заборонене, якщо у волонтера є активні лоти зі статусом `RESERVED` або `PICKED_UP` | `VolunteerHasActiveLotsException` | 409 |
 | 2.9 | Бажані пункти призначення: додавання/видалення/перегляд прив'язки до `DestinationPoint`. Якщо волонтер або пункт не знайдено | `VolunteerNotFoundException`, `NotFoundException` | 404 |
@@ -106,9 +106,9 @@ HTTP-статуси помилок: **404** — не знайдено, **409** �
 
 | # | Правило | Виняток | HTTP |
 |---|---------|---------|------|
-| 3.1 | `pickup`: перехід `RESERVED` → `PICKED_UP`; ознака `latePickup` фіксується, якщо поточний час пізніше `reservedUntil` | `InvalidLotStateException` | 422 |
-| 3.2 | `deliver`: перехід `PICKED_UP` → `DELIVERED`; пункт призначення має приймати категорію лоту; після успіху генерується 6-значний код підтвердження | `InvalidLotStateException`, `CategoryNotAcceptedException` | 422 |
-| 3.3 | `confirm`: код має збігатися; якщо відхилення ваги перевищує допуск стратегії — `DISPUTED`, інакше `CONFIRMED`; після збереження публікується `DeliveryFinishedEvent` | `InvalidLotStateException`, `InvalidConfirmationCodeException` | 422 |
+| 3.1 | `pickup`: перехід `RESERVED` → `PICKED_UP`; ознака `latePickup` фіксується, якщо поточний час пізніше `reservedUntil` | `InvalidLotStateException` | 409 |
+| 3.2 | `deliver`: перехід `PICKED_UP` → `DELIVERED`; пункт призначення має приймати категорію лоту; після успіху генерується 6-значний код підтвердження | `InvalidLotStateException` (409), `CategoryNotAcceptedException` (422) | 409, 422 |
+| 3.3 | `confirm`: код має збігатися; якщо відхилення ваги перевищує допуск стратегії — `DISPUTED`, інакше `CONFIRMED`; після збереження публікується `DeliveryFinishedEvent` | `InvalidLotStateException` (409), `InvalidConfirmationCodeException` (422) | 409, 422 |
 | 3.4 | Назва пункту призначення має бути унікальною | `DuplicateDestinationPointException` | 409 |
 | | Пункт призначення не існує | `DestinationPointNotFoundException` | 404 |
 | | Запис доставки для лоту не існує | `DeliveryNotFoundException` | 404 |
@@ -297,16 +297,16 @@ REST API під `/api/**` захищений Spring Security зі stateless JWT:
 Паролі зберігаються як хеші Argon2id. Помилки 401 і 403 повертаються у форматі `ProblemDetail` з `instance`. Публічні лише логін, Swagger/OpenAPI та `actuator/health`; CORS дозволено для `http://localhost:3000` і `http://localhost:5173`.
 Ролі: `DONOR`, `VOLUNTEER`, `COORDINATOR`, `ADMIN`. У модулі `lot` створення, оновлення, видалення, публікація й скасування лотів та зміна позицій дозволені лише `DONOR`, схвалення лоту лише `ADMIN`, читання будь-якому автентифікованому користувачу (`@PreAuthorize` на `LotService` і `LotItemService`). У модулі `volunteer` резервування лоту й скасування резервування дозволені лише `VOLUNTEER` (`@PreAuthorize` на `VolunteerService`), решта методів вимагає будь-якого валідного токена.
 У модулі `delivery` роль `COORDINATOR` потрібна для створення, оновлення та видалення пунктів призначення; роль `VOLUNTEER` — для передачі лоту, доставки й підтвердження отримання. Перегляд пунктів, доставок та історії доступний усім автентифікованим користувачам. Перевірка ролей виконується через `@PreAuthorize` на методах `DeliveryService`, без змін бізнес-логіки та маршрутів.
-Демо-користувачі створюються при старті: `donor1` / `donorpass1`, `volunteer1` / `volunteerpass1`, `coordinator1` / `coordinatorpass1`, `admin1` / `adminpass1`. Для Swagger UI є схема `BearerAuth`.
+Демо-користувачі створюються при старті: `donor1`, `volunteer1`, `coordinator1`, `admin1`. Паролі задаються в налаштуваннях `foodrescue.demo.passwords.<логін>` (`application.properties`), у коді їх немає; для Postman вони лежать у змінних середовища `donorPassword`, `volunteerPassword`, `coordinatorPassword` (`postman/food-rescue-environment.json`). Для Swagger UI є схема `BearerAuth`.
 
 
 ### 12.1. Вебінтерфейс
 
 Сторінки на Thymeleaf працюють під окремим ланцюгом безпеки: вхід через форму `/login`, автентифікація в сесії, CSRF увімкнено (усі форми з `th:action`, вихід лише POST-запитом). REST під `/api/**` лишається на JWT, CSRF там вимкнено, бо токен передається заголовком, а не кукою.
 Адреси: `/login` (вхід), `/lots` (список лотів, бачать усі залогінені), `/lots/new` і `POST /lots` (форма створення лота, лише `DONOR`; кнопка «Додати лот» показується лише донору через `sec:authorize`, а права перевіряє `@PreAuthorize` на `LotService`). Сторінки `403` і `404` мають власні шаблони в `templates/error`, для запитів із `Accept: text/html`.
-Для входу підходять ті самі демо-користувачі, що й для JWT (`donor1` / `donorpass1`, `volunteer1` / `volunteerpass1` тощо). Стилі лежать у `static/css/app.css` і підключаються з хешем вмісту в імені файлу; спільна навігація й `head` у фрагменті `templates/fragments/layout.html`.
-Сторінка `/reservations` (лише `VOLUNTEER`, вхід `volunteer1` / `volunteerpass1`) показує поточні резервування і форму резервування: волонтер обирає опублікований лот, а резервування записується на профіль волонтера, який увійшов (`CurrentUser`), після успіху редірект назад на список (Post-Redirect-Get), а якщо поле не вибране, форма показується знову з помилками під полями. Посилання в навігації бачить лише волонтер (`sec:authorize`), а на сервері `@PreAuthorize("hasRole('VOLUNTEER')")` стоїть і на `VolunteerService.reserve`, і на методах читання для сторінки, тому інша роль за прямою адресою отримує `403`.
-Сторінки пунктів призначення: `/destination-points` (список), `/destination-points/new` (форма) і `POST /destination-points` (створення); вебінтерфейс доступний лише ролі `COORDINATOR`, зокрема демо-користувачу `coordinator1` / `coordinatorpass1`. Форма перевіряє ID організації, назву, адресу, години роботи й категорії; після успішного створення повертає на список (Post-Redirect-Get). Захист форми забезпечують наявні сесія, CSRF і `@PreAuthorize`, REST-маршрути `/api/v1/destination-points` не змінено.
+Для входу підходять ті самі демо-користувачі, що й для JWT (`donor1`, `volunteer1` тощо). Стилі лежать у `static/css/app.css` і підключаються з хешем вмісту в імені файлу; спільна навігація й `head` у фрагменті `templates/fragments/layout.html`.
+Сторінка `/reservations` (лише `VOLUNTEER`, вхід `volunteer1`) показує поточні резервування і форму резервування: волонтер обирає опублікований лот, а резервування записується на профіль волонтера, який увійшов (`CurrentUser`), після успіху редірект назад на список (Post-Redirect-Get), а якщо поле не вибране, форма показується знову з помилками під полями. Посилання в навігації бачить лише волонтер (`sec:authorize`), а на сервері `@PreAuthorize("hasRole('VOLUNTEER')")` стоїть і на `VolunteerService.reserve`, і на методах читання для сторінки, тому інша роль за прямою адресою отримує `403`.
+Сторінки пунктів призначення: `/destination-points` (список), `/destination-points/new` (форма) і `POST /destination-points` (створення); вебінтерфейс доступний лише ролі `COORDINATOR`, зокрема демо-користувачу `coordinator1`. Форма перевіряє ID організації, назву, адресу, години роботи й категорії; після успішного створення повертає на список (Post-Redirect-Get). Захист форми забезпечують наявні сесія, CSRF і `@PreAuthorize`, REST-маршрути `/api/v1/destination-points` не змінено.
 ### Вебінтерфейс модуля delivery (розширення після контракту №7)
 
 Для входу використовується `/login` і сесія браузера (CSRF увімкнений);

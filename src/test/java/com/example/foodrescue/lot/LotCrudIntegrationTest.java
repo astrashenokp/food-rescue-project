@@ -263,13 +263,13 @@ class LotCrudIntegrationTest {
     }
 
     @Test
-    void publication_AlreadyPublished_ShouldReturnUnprocessableEntityAndKeepStatus() throws Exception {
+    void publication_AlreadyPublished_ShouldReturnConflictAndKeepStatus() throws Exception {
         UUID id = createLot(uniqueTitle());
         mockMvc.perform(post(LOTS + "/" + id + "/publication")).andExpect(status().isOk());
 
         mockMvc.perform(post(LOTS + "/" + id + "/publication"))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.status").value(422));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409));
 
         assertThat(statusOf(id)).isEqualTo("PUBLISHED");
     }
@@ -303,13 +303,13 @@ class LotCrudIntegrationTest {
     }
 
     @Test
-    void cancellation_ReservedLot_ShouldReturnUnprocessableEntityAndKeepStatus() throws Exception {
+    void cancellation_ReservedLot_ShouldReturnConflictAndKeepStatus() throws Exception {
         UUID id = createLot(uniqueTitle());
         jdbc.sql("update food_lots set status = 'RESERVED' where id = ?").param(id).update();
 
         mockMvc.perform(post(LOTS + "/" + id + "/cancellation"))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.status").value(422));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409));
 
         assertThat(statusOf(id)).isEqualTo("RESERVED");
     }
