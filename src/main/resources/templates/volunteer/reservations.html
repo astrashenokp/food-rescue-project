@@ -4,7 +4,7 @@
 <body>
 <nav th:replace="~{fragments/layout :: nav}"></nav>
 <main class="card">
-    <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+    <div th:if="${successMessage}" class="alert alert-success" role="alert" th:text="${successMessage}"></div>
     <h1>Резервування</h1>
     <table>
         <thead>
@@ -25,13 +25,13 @@
 
     <h2>Зарезервувати лот</h2>
     <form th:action="@{/reservations}" th:object="${form}" method="post">
-        <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}" th:each="err : ${#fields.globalErrors()}" th:text="${err}">Помилка</div>
+        <div class="alert alert-danger" role="alert" th:if="${#fields.hasGlobalErrors()}" th:each="err : ${#fields.globalErrors()}" th:text="${err}">Помилка</div>
         <label for="lotId">Лот</label>
         <select id="lotId" th:field="*{lotId}">
             <option value="">Оберіть</option>
             <option th:each="lot : ${lots}" th:value="${lot.id}" th:text="${lot.title + ' (' + lot.category + ', ' + lot.totalWeightKg + ' кг)'}">Хліб</option>
         </select>
-        <div class="error" th:if="${#fields.hasErrors('lotId')}" th:errors="*{lotId}">Помилка</div>
+        <div class="error" role="alert" th:if="${#fields.hasErrors('lotId')}" th:errors="*{lotId}">Помилка</div>
 
         <button type="submit" class="btn btn-success">Зарезервувати</button>
     </form>

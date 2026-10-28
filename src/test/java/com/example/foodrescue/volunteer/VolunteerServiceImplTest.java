@@ -456,16 +456,27 @@ class VolunteerServiceImplTest {
     }
 
     @Test
-    void cancelReservation_notReservedLot_throwsInvalidStateAndDoesNotSave() {
+    void cancelReservation_publishedLot_throwsInvalidStateAndDoesNotSave() {
         FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(5), NOW.minus(1, ChronoUnit.HOURS));
         given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
-        doThrow(new InvalidLotStateException("перехід заборонено"))
-                .when(statusChanger).transition(lot, LotStatus.PUBLISHED, "Резерв скасовано");
 
         assertThrows(InvalidLotStateException.class, () -> service.cancelReservation(LOT_ID));
 
         verify(lotRepository, never()).save(any());
-        verifyNoInteractions(volunteerRepository);
+        verifyNoInteractions(volunteerRepository, statusChanger, currentUser);
+    }
+
+    @Test
+    void cancelReservation_draftLot_throwsInvalidStateAndKeepsDraft() {
+        FoodLot lot = publishedLot(FoodCategory.BAKERY, BigDecimal.valueOf(5), NOW.minus(1, ChronoUnit.HOURS));
+        lot.setStatus(LotStatus.DRAFT);
+        given(lotRepository.findById(LOT_ID)).willReturn(Optional.of(lot));
+
+        assertThrows(InvalidLotStateException.class, () -> service.cancelReservation(LOT_ID));
+
+        assertEquals(LotStatus.DRAFT, lot.getStatus());
+        verify(lotRepository, never()).save(any());
+        verifyNoInteractions(statusChanger);
     }
 
     @Test

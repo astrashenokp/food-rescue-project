@@ -3,6 +3,7 @@ package com.example.foodrescue.volunteer.internal;
 import com.example.foodrescue.common.CurrentUser;
 import com.example.foodrescue.common.FoodLot;
 import com.example.foodrescue.common.ForbiddenActionException;
+import com.example.foodrescue.common.InvalidLotStateException;
 import com.example.foodrescue.common.LotNotFoundException;
 import com.example.foodrescue.common.LotRepository;
 import com.example.foodrescue.common.LotResponse;
@@ -166,8 +167,10 @@ public class VolunteerServiceImpl implements VolunteerService {
     public void cancelReservation(UUID lotId) {
         FoodLot lot = lotRepository.findById(lotId)
                 .orElseThrow(() -> new LotNotFoundException(lotId));
-        UUID reservedBy = lot.getReservedByVolunteerId();
-        if (reservedBy != null && !reservedBy.equals(currentVolunteerId())) {
+        if (lot.getStatus() != LotStatus.RESERVED) {
+            throw new InvalidLotStateException("Лот " + lotId + " не зарезервовано, скасовувати нічого");
+        }
+        if (!currentVolunteerId().equals(lot.getReservedByVolunteerId())) {
             throw new ForbiddenActionException("Лот зарезервовано іншим волонтером");
         }
 
