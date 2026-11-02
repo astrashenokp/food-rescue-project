@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    image: foodrescue:latest
+    env_file: deploy.env
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    stop_grace_period: 40s
