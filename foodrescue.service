@@ -1,0 +1,20 @@
+[Unit]
+Description=Food Rescue Service
+After=network.target
+
+[Service]
+Type=simple
+User=foodrescue
+Group=foodrescue
+WorkingDirectory=/opt/foodrescue
+EnvironmentFile=/etc/foodrescue/foodrescue.env
+ExecStart=/usr/bin/java -jar /opt/foodrescue/foodrescue.jar
+SuccessExitStatus=143
+TimeoutStopSec=40
+Restart=always
+RestartSec=10
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
