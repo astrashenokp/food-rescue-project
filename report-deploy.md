@@ -1,18 +1,21 @@
 # Звіт про розгортання Food Rescue
 
+**Дата перевірки:** 03.11.2026
+
 ## 1. Обрана архітектура
 
-Застосунок розгортається в ізольованому Docker-середовищі через Docker Compose на локальній машині (Windows, Docker Desktop). Docker дозволений завданням, образ однаково збирається й запускається на будь-якій машині, а процес застосунку відокремлений від системи й працює без прав root.
+Застосунок успішно зібрано та запущено в ізольованому Docker-середовищі через Docker Compose на локальній машині (Windows, Docker Desktop). Цей варіант дозволений груповим завданням лекції 9 як альтернатива VPS із systemd. Процес застосунку ізольований у контейнері та працює без прав root.
 
 ```
-клієнт → (тунель або публічна адреса) → контейнер app (порт 8080) → Spring Boot → H2 в пам'яті
+Перевірено: локальний клієнт → localhost:8080 → Docker-контейнер → Spring Boot → H2 в пам'яті
+План для зовнішнього доступу: Інтернет → публічний HTTPS-тунель → localhost:8080 → Docker-контейнер
 ```
 
-Контейнер збирається багатоетапним `Dockerfile`: на першому етапі образ `eclipse-temurin:25-jdk` збирає jar командою `./mvnw -B -DskipTests package`, на другому образ `eclipse-temurin:25-jre` містить лише jar. Тести в збірку образу не входять (інтеграційним тестам потрібен Docker усередині збірки), їх запускають окремо командою `./mvnw verify`.
+Контейнер збирається багатоетапним `Dockerfile`: на першому етапі образ `eclipse-temurin:25-jdk` збирає jar командою `./mvnw -B -DskipTests package`, на другому образ `eclipse-temurin:25-jre` містить готовий jar. Збірка Docker-образу 03.11.2026 завершилася з результатом `BUILD SUCCESS`, контейнер мав статус `Up`. Тести не запускаються під час збірки образу (для інтеграційних тестів потрібне окреме Docker-середовище); перевірка `./mvnw verify` виконується окремо й не входить до наведеного результату збірки.
 
 ## 2. Файли налаштувань
 
-Усі файли лежать у корені репозиторію. Справжні секрети в репозиторій не потрапляють: `deploy.env` додано в `.gitignore` і `.dockerignore`, у репозиторії лише шаблон `deploy.env.example`.
+Файли налаштування розгортання розміщені в корені репозиторію, а `application.properties` — у `src/main/resources/`. Файл із секретами `deploy.env` додано в `.gitignore` і `.dockerignore`; у репозиторії залишається шаблон `deploy.env.example` без справжніх секретів.
 
 **`Dockerfile`**
 
@@ -78,3 +81,102 @@ FOODRESCUE_DEMO_PASSWORDS_ADMIN1=<password>
 server.shutdown=graceful
 spring.lifecycle.timeout-per-shutdown-phase=30s
 ```
+
+**`foodrescue.service` (підготовлений варіант для VPS)**
+
+```ini
+[Unit]
+Description=Food Rescue Service
+After=network.target
+
+[Service]
+Type=simple
+User=foodrescue
+Group=foodrescue
+WorkingDirectory=/opt/foodrescue
+EnvironmentFile=/etc/foodrescue/foodrescue.env
+ExecStart=/usr/bin/java -jar /opt/foodrescue/foodrescue.jar
+SuccessExitStatus=143
+TimeoutStopSec=40
+Restart=always
+RestartSec=10
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Для запуску через systemd потрібні Linux із Java 25, системний користувач `foodrescue`, jar за шляхом `/opt/foodrescue/foodrescue.jar` та захищений файл `/etc/foodrescue/foodrescue.env`. Файловий журнал Logback записується в `logs/foodrescue.log` відносно `WorkingDirectory`, тому `/opt/foodrescue/logs` має бути доступний для запису користувачу `foodrescue`. Справжніх паролів і ключів у звіті немає.
+
+## 3. Зовнішній доступ (частина другої ролі)
+
+На 03.11.2026 **підтверджено локальну доступність**, але не зовнішню доступність через Інтернет: команда `curl.exe -i http://localhost:8080/login` повернула `HTTP/1.1 200`, HTML-сторінку входу та заголовок `X-Trace-Id`. Це підтверджує, що застосунок у Docker обробляє HTTP-запити на локальній машині.
+
+Публічну HTTPS-адресу, перевірку запитів із зовнішньої мережі та скриншоти зовнішнього доступу ще має додати відповідальний за другу роль. Локальну відповідь `200` **не вважаємо доказом** виконання вимог G4–G5.
+
+## 4. Автоматичний запуск та ізоляція прав
+
+У вибраному Docker-варіанті `compose.yaml` задає `restart: unless-stopped` — політику перезапуску контейнера, якщо його не зупинили вручну. У `Dockerfile` задано `USER app`, тому JVM працює не від root. Конфігурація передається через `env_file: deploy.env`; файл із секретами не потрібно додавати в репозиторій.
+
+**Фактичні перевірки в Windows PowerShell, 03.11.2026:**
+
+| Перевірка | Команда | Результат |
+|---|---|---|
+| Збірка та запуск | `docker compose up -d --build` | `BUILD SUCCESS`; образ `foodrescue:latest` зібрано, контейнер створено |
+| Стан контейнера | `docker compose ps` | `Up`, порт `8080` опублікований |
+| Користувач у контейнері | `docker compose exec app id -un` | `app` (не `root`) |
+| Політика перезапуску | `docker inspect $cid --format '{{.HostConfig.RestartPolicy.Name}}'` | `unless-stopped` |
+| HTTP-запит | `curl.exe -i http://localhost:8080/login` | `HTTP/1.1 200`; сторінка входу повернулася успішно |
+
+Отже, ізоляцію прав, налаштовану політику перезапуску та локальну доступність перевірено. **Фактичне автоматичне відновлення після аварійного завершення окремо не перевірялося**; команда `docker inspect` підтверджує саме налаштування політики.
+
+Для альтернативного VPS-варіанту підготовлено `foodrescue.service`: `User=foodrescue` і `Group=foodrescue` обмежують права процесу, `ProtectSystem=full` і `PrivateTmp=true` додають ізоляцію, `EnvironmentFile` підключає змінні середовища. `Restart=always` і секція `[Install]` дозволяють увімкнути запуск разом із Linux-системою. Після підготовки VPS адміністратор може виконати:
+
+```bash
+sudo install -o root -g root -m 644 foodrescue.service /etc/systemd/system/foodrescue.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now foodrescue
+sudo systemctl is-enabled foodrescue
+sudo systemctl status foodrescue
+sudo journalctl -u foodrescue -n 50 --no-pager
+```
+
+**Перевірка systemd без окремого Linux/VPS:** на Windows через Docker Desktop запущено тимчасовий контейнер `ubuntu:24.04`, встановлено `systemd` і Java Runtime та виконано `systemd-analyze verify /work/foodrescue.service`. Команда завершилася з кодом **`0`** (PowerShell: `$LASTEXITCODE`). Були два попередження: файл позначено як executable і world-writable. Вони пов’язані з правами файлу, змонтованого з Windows до Linux-контейнера, і не спричинили помилки перевірки конфігурації. На реальному VPS юніт потрібно встановлювати з правами `0644` і власником `root:root`, як у команді `install` вище.
+
+Оскільки обрано Docker на Windows, **реальний запуск `foodrescue.service` через `systemctl`, його автозапуск після перезавантаження VPS та журнали `journalctl` не перевірялися**. Юніт залишається підготовленою VPS-альтернативою, а не основним способом розгортання команди.
+
+## 5. Безпечне завершення (graceful shutdown)
+
+У `src/main/resources/application.properties` налаштовано:
+
+```properties
+server.shutdown=graceful
+spring.lifecycle.timeout-per-shutdown-phase=30s
+```
+
+У `compose.yaml` задано `stop_grace_period: 40s`, а в `foodrescue.service` — `TimeoutStopSec=40`. Обидва значення більші за 30-секундний ліміт Spring Boot, тому під час штатної зупинки застосунок має час завершити активні HTTP-запити до примусового припинення процесу.
+
+**Фактична перевірка Docker, 03.11.2026:**
+
+```powershell
+docker compose stop
+docker compose logs app | Select-String "graceful shutdown"
+$cid = docker compose ps -a -q app
+docker inspect $cid --format '{{.State.ExitCode}}'
+```
+
+Команда `docker compose stop` успішно зупинила контейнер. У журналі зафіксовано:
+
+```text
+2026-11-03 09:05:42,542 INFO [SpringApplicationShutdownHook] ... - Commencing graceful shutdown. Waiting for active requests to complete
+2026-11-03 09:05:42,552 INFO [tomcat-shutdown] ... - Graceful shutdown complete
+```
+
+Код завершення контейнера: **`143`**. Це підтверджує, що Spring Boot отримав сигнал завершення й штатно виконав процедуру graceful shutdown. У цьому запуску зупинка контейнера тривала приблизно одну секунду.
+
+**Межа перевірки:** на момент зупинки не проводився окремий тест із довгим активним запитом. Тому доведено коректну штатну зупинку, але не виміряно збереження відповіді HTTP `200` для запиту, який ще виконується. На VPS таку поведінку також не тестували; `SuccessExitStatus=143` у юніті лише задає трактування цього коду завершення як штатного.
+
+## 6. Підсумок перевірки
+
+Docker-збірка, локальний HTTP-доступ, запуск не від root, політика `unless-stopped` і штатний graceful shutdown **підтверджені фактичними результатами команд**. Файл `foodrescue.service` пройшов статичну перевірку в Ubuntu-контейнері з кодом `0`, але не запускався як Linux-служба. Для завершення загального групового звіту потрібно додати результати **зовнішнього доступу** (роль 2) і, за потреби, скриншоти команд із розділів 3–5. Дані H2 зберігаються в пам’яті та зникають після перезапуску застосунку; для навчальної демонстрації це допустиме обмеження.

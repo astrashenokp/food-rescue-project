@@ -346,3 +346,26 @@ Post-Redirect-Get. Усі POST-форми мають CSRF-токени Thymeleaf
 Потрібен запущений Docker. Скопіюйте `deploy.env.example` у `deploy.env`, підставте свої значення (`JWT_SECRET` не коротший за 32 байти і окремий пароль для кожного демо-акаунта) і виконайте `docker compose up -d --build`. Файл `deploy.env` вказано в `.gitignore`, тому секрети не потрапляють у репозиторій. Образ збирається всередині Docker (jar створюється командою `./mvnw -DskipTests package`), а застосунок працює від користувача `app`, не від root, і слухає порт 8080.
 
 Зупиняти потрібно командою `docker compose stop` (не `docker kill` і не `docker stop` без `-t`): `stop_grace_period` у `compose.yaml` дорівнює 40 с і більший за `spring.lifecycle.timeout-per-shutdown-phase=30s`, тому Spring встигає завершити активні запити. Автозапуск забезпечує `restart: unless-stopped`; дані зберігаються в H2 в пам'яті й зникають при перезапуску.
+
+### 14.2. Альтернатива: VPS із systemd
+
+Для розгортання без Docker на Linux VPS потрібні Java 25, зібраний jar і юніт [`foodrescue.service`](foodrescue.service): застосунок запускається від окремого користувача `foodrescue`, а конфігурація передається через `/etc/foodrescue/foodrescue.env` (ключі як у `deploy.env.example`, без публікації секретів). Створіть користувача й каталоги `/opt/foodrescue` та `/opt/foodrescue/logs` (останній має бути доступний для запису користувачу `foodrescue`, оскільки Logback пише туди файл журналу), покладіть jar у `/opt/foodrescue/foodrescue.jar`, файл змінних — у `/etc/foodrescue/foodrescue.env` із правами `600`, а юніт — у `/etc/systemd/system/foodrescue.service`.
+
+Приклад налаштування на VPS після встановлення Java 25 і збірки `./mvnw -DskipTests package`:
+
+```bash
+sudo useradd --system --user-group --shell /usr/sbin/nologin foodrescue
+sudo install -d -o root -g root -m 755 /opt/foodrescue
+sudo install -d -o foodrescue -g foodrescue -m 750 /opt/foodrescue/logs
+sudo install -m 644 target/foodrescue-0.0.1-SNAPSHOT.jar /opt/foodrescue/foodrescue.jar
+sudo install -d -o root -g root -m 700 /etc/foodrescue
+sudo install -m 600 -o root -g root /dev/null /etc/foodrescue/foodrescue.env
+sudoedit /etc/foodrescue/foodrescue.env  # заповнити JWT_SECRET і паролі за deploy.env.example
+sudo install -m 644 foodrescue.service /etc/systemd/system/foodrescue.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now foodrescue
+sudo systemctl status foodrescue
+sudo journalctl -u foodrescue -n 50 --no-pager
+```
+
+Перевірка коректного завершення: `sudo systemctl stop foodrescue` і `sudo journalctl -u foodrescue -n 80 --no-pager` (40 с у юніті проти 30 с у Spring Boot). Докладний опис та результати перевірок — у [`report-deploy.md`](report-deploy.md); VPS є альтернативою основному Docker-розгортанню, а не підтвердженим запуском на сервері.
