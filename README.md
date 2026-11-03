@@ -369,3 +369,7 @@ sudo journalctl -u foodrescue -n 50 --no-pager
 ```
 
 Перевірка коректного завершення: `sudo systemctl stop foodrescue` і `sudo journalctl -u foodrescue -n 80 --no-pager` (40 с у юніті проти 30 с у Spring Boot). Докладний опис та результати перевірок — у [`report-deploy.md`](report-deploy.md); VPS є альтернативою основному Docker-розгортанню, а не підтвердженим запуском на сервері.
+
+### 14.3. Зовнішній доступ
+
+Після `docker compose up -d --build` публічну HTTPS-адресу дає тунель ngrok: `ngrok http 8080` (потрібен безкоштовний акаунт і `ngrok config add-authtoken <токен>`), у рядку `Forwarding` з'явиться адреса виду `https://<ім'я>.ngrok-free.dev`. Перевіряти треба не з `localhost`, а з іншого пристрою через цю адресу: `/login` відкриває сторінку входу, `curl -i https://<адреса>/api/v1/lots` повертає `401`, а вхід паролем із `deploy.env` (формою або `POST /api/v1/auth/login`) пускає до `/lots`. Адреса живе, лише поки працюють `ngrok` і машина з контейнером; результати перевірки та скриншоти — у розділі 3 [`report-deploy.md`](report-deploy.md).
