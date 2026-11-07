@@ -14,7 +14,7 @@ import java.util.Objects;
 @Table(name = "audit_log")
 public class AuditLogEntity {
 
-    private static final int TEXT_LENGTH = 2000;
+    public static final int TEXT_LENGTH = 2000;
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
