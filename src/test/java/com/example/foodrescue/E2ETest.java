@@ -17,7 +17,7 @@ import java.lang.annotation.Target;
 @AutoConfigureRestTestClient
 @ActiveProfiles("test")
 @Import({TestcontainersConfiguration.class, AlertsStubConfiguration.class})
-@Sql(scripts = {"/sql/reset-delivery.sql", "/sql/reset-volunteer.sql", "/sql/reset-lot.sql"},
+@Sql(scripts = {"/sql/reset-delivery.sql", "/sql/reset-volunteer.sql", "/sql/reset-lot.sql", "/sql/reset-audit.sql"},
         executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 public @interface E2ETest {
 }
