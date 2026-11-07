@@ -21,10 +21,13 @@ public final class AuditTestSupport {
 
     public static LotRequest lotRequest(String title) {
         Instant now = Instant.now();
+        return lotRequest(title, now.plus(2, ChronoUnit.HOURS), now.plus(4, ChronoUnit.HOURS));
+    }
+
+    public static LotRequest lotRequest(String title, Instant pickupFrom, Instant pickupTo) {
         return new LotRequest(UUID.randomUUID(), title, FoodCategory.BAKERY,
                 List.of(new FoodItemRequest("Хліб", BigDecimal.valueOf(5), ItemUnit.KG, null)),
-                BigDecimal.valueOf(5), StorageCondition.ROOM, "Київ, вул. Хлібна, 1",
-                now.plus(2, ChronoUnit.HOURS), now.plus(4, ChronoUnit.HOURS));
+                BigDecimal.valueOf(5), StorageCondition.ROOM, "Київ, вул. Хлібна, 1", pickupFrom, pickupTo);
     }
 
     public static List<Map<String, Object>> auditRows(JdbcClient jdbc, String action) {
