@@ -1,5 +1,6 @@
 package com.example.foodrescue.lot.internal;
 
+import com.example.foodrescue.common.AuditAction;
 import com.example.foodrescue.common.FoodCategory;
 import com.example.foodrescue.common.FoodItem;
 import com.example.foodrescue.common.FoodLot;
@@ -45,6 +46,7 @@ public class LotServiceImpl implements LotService {
     }
 
     @Override
+    @AuditAction(action = "CREATE_LOT")
     @Transactional
     public LotResponse create(LotRequest request) {
         Instant now = Instant.now(clock);
@@ -78,6 +80,7 @@ public class LotServiceImpl implements LotService {
     }
 
     @Override
+    @AuditAction(action = "UPDATE_LOT")
     @Transactional
     public LotResponse update(UUID id, LotRequest request) {
         FoodLot lot = findWithItems(id);
@@ -100,6 +103,7 @@ public class LotServiceImpl implements LotService {
     }
 
     @Override
+    @AuditAction(action = "PUBLISH_LOT")
     @Transactional
     public LotResponse publish(UUID id) {
         FoodLot lot = findWithItems(id);
@@ -116,6 +120,7 @@ public class LotServiceImpl implements LotService {
     }
 
     @Override
+    @AuditAction(action = "CANCEL_LOT")
     @Transactional
     public LotResponse cancel(UUID id) {
         FoodLot lot = findWithItems(id);
@@ -124,6 +129,7 @@ public class LotServiceImpl implements LotService {
     }
 
     @Override
+    @AuditAction(action = "APPROVE_LOT")
     @Transactional
     public LotResponse approve(UUID id, ApprovalRequest request) {
         FoodLot lot = findWithItems(id);
