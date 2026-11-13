@@ -2,6 +2,7 @@ package com.example.foodrescue.volunteer;
 
 import com.example.foodrescue.common.LotResponse;
 import com.example.foodrescue.delivery.DeliveryOutcome;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
@@ -20,7 +21,7 @@ public interface VolunteerService {
     void delete(UUID id);
 
     @PreAuthorize("hasRole('VOLUNTEER')")
-    void reserve(UUID lotId);
+    void reserve(@NotNull(message = "Ідентифікатор лота обов'язковий") UUID lotId);
 
     @PreAuthorize("hasRole('VOLUNTEER')")
     void cancelReservation(UUID lotId);

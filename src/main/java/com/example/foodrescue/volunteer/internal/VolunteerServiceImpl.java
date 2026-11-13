@@ -1,5 +1,6 @@
 package com.example.foodrescue.volunteer.internal;
 
+import com.example.foodrescue.common.AuditAction;
 import com.example.foodrescue.common.CurrentUser;
 import com.example.foodrescue.common.FoodLot;
 import com.example.foodrescue.common.ForbiddenActionException;
@@ -27,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -38,6 +40,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
+@Validated
 @Transactional(readOnly = true)
 public class VolunteerServiceImpl implements VolunteerService {
 
@@ -137,6 +140,7 @@ public class VolunteerServiceImpl implements VolunteerService {
     }
 
     @Override
+    @AuditAction(action = "RESERVE_LOT")
     @Transactional
     public void reserve(UUID lotId) {
         UUID volunteerId = currentVolunteerId();
@@ -163,6 +167,7 @@ public class VolunteerServiceImpl implements VolunteerService {
     }
 
     @Override
+    @AuditAction(action = "CANCEL_RESERVATION")
     @Transactional
     public void cancelReservation(UUID lotId) {
         FoodLot lot = lotRepository.findById(lotId)
