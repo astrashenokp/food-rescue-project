@@ -79,7 +79,7 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .anyRequest().authenticated())
-                .formLogin(form -> form.loginPage("/login").defaultSuccessUrl("/lots"))
+                .formLogin(form -> form.loginPage("/login").defaultSuccessUrl("/lots", true))
                 .logout(logout -> logout.logoutSuccessUrl("/login?logout"));
         return http.build();
     }
