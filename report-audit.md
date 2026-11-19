@@ -1,6 +1,6 @@
 # Звіт про аспектний аудит Food Rescue
 
-**Дати перевірки:** 07.11.2026 (запити до API та записи `lot`), 19.11.2026 (інтеграційні й E2E-тести)  
+**Дата перевірки:** 19.11.2026  
 **Проєкт:** Food Rescue (Spring Boot 4.1.1, Java 25, Spring Modulith)
 
 ## 1. Що зроблено
@@ -50,107 +50,89 @@
 
 ## 2. Запити
 
-### Модуль `lot`
-
-07.11.2026 застосунок запущено командою `java -jar target/foodrescue-0.0.1-SNAPSHOT.jar` (порт `18080`, файлова H2); запити надіслано через `curl` під демонстраційними користувачами.
+19.11.2026 застосунок запущено командою `java -jar target/foodrescue-0.0.1-SNAPSHOT.jar` (порт `18080`, файлова H2), запити надіслано командою `curl` із JWT демонстраційних користувачів `donor1`, `volunteer1`, `coordinator1` і `admin1`.
 
 | № | Запит | Результат | Код |
-|---|---|---|---|
+|---:|---|---|---|
 | 1 | `donor1`: `POST /api/v1/lots` | Лот створено | `201` |
 | 2 | `donor1`: `POST /api/v1/lots/{id}/publication` | Лот опубліковано | `200` |
 | 3 | `donor1`: `PUT /api/v1/lots/{id}` (лот уже опубліковано) | Помилка бізнес-правила | `409` |
 | 4 | `volunteer1`: `POST /api/v1/lots` | Відмова за роллю | `403` |
 | 5 | `donor1`: `POST /api/v1/lots` з порожньою назвою | Помилка валідації в контролері | `400` |
-| 6 | `donor1`: `POST /api/v1/lots/{id}/cancellation` | Лот скасовано | `200` |
-| 7 | `donor1`: `POST /api/v1/lots/{id}/cancellation` (повторно) | Заборонений перехід стану | `409` |
-| 8 | `admin1`: `POST /api/v1/lots/{id}/approval` | Рішення модератора | `200` |
+| 6 | `donor1`: `POST /api/v1/lots` (лот для скасування) | Лот створено | `201` |
+| 7 | `donor1`: `POST /api/v1/lots/{id}/cancellation` | Лот скасовано | `200` |
+| 8 | `donor1`: `POST /api/v1/lots/{id}/cancellation` (повторно) | Заборонений перехід стану | `409` |
+| 9 | `donor1`: `POST /api/v1/lots` (лот для модерації) | Лот створено | `201` |
+| 10 | `admin1`: `POST /api/v1/lots/{id}/approval` | Рішення модератора | `200` |
+| 11 | `volunteer1`: `POST /api/v1/lots/{id}/reservation` | Лот зарезервовано | `201` |
+| 12 | `volunteer1`: `POST /api/v1/lots/{id}/reservation` (повторно) | Повторне резервування відхилено | `409` |
+| 13 | `donor1`: `POST /api/v1/lots/{id}/reservation` | Відмова за роллю | `403` |
+| 14 | `volunteer1`: `DELETE /api/v1/lots/{id}/reservation` | Резервування скасовано | `204` |
+| 15 | `volunteer1`: `POST /api/v1/lots/{id}/reservation` (знову) | Лот зарезервовано | `201` |
+| 16 | `coordinator1`: `POST /api/v1/destination-points` | Пункт призначення створено | `201` |
+| 17 | `volunteer1`: `POST /api/v1/destination-points` | Відмова за роллю | `403` |
+| 18 | `volunteer1`: `POST /api/v1/lots/{id}/pickup` | Лот отримано | `200` |
+| 19 | `volunteer1`: `POST /api/v1/lots/{id}/pickup` (повторно) | Заборонений перехід стану | `409` |
+| 20 | `donor1`: `POST /api/v1/lots/{id}/pickup` | Відмова за роллю | `403` |
+| 21 | `volunteer1`: `POST /api/v1/lots/{id}/delivery` | Лот доставлено | `200` |
+| 22 | `volunteer1`: `POST /api/v1/lots/{id}/delivery` (повторно) | Заборонений перехід стану | `409` |
+| 23 | `volunteer1`: `POST /api/v1/lots/{id}/confirmation` (неправильний код) | Код підтвердження відхилено | `422` |
+| 24 | `volunteer1`: `POST /api/v1/lots/{id}/confirmation` | Доставку підтверджено | `200` |
 
-### Модуль `volunteer`
-
-19.11.2026 запити перевірено в `ReservationApiE2EIT`: запуск HTTP API з JWT користувачів і перевірка стану лота в PostgreSQL.
-
-| Користувач | Запит | Результат | Код |
-|---|---|---|---|
-| `volunteer1` | `POST /api/v1/lots/{id}/reservation` | Опублікований лот зарезервовано | `201` |
-| `volunteer1` | Повторний `POST /api/v1/lots/{id}/reservation` | Повторне резервування відхилено | `409` |
-| `volunteer1` | `DELETE /api/v1/lots/{id}/reservation` | Резервування скасовано | `204` |
-| `donor1` | `POST /api/v1/lots/{id}/reservation` | Відмова за роллю | `403` |
-
-Після резервування лот має статус `RESERVED` і містить ідентифікатор волонтера; після скасування повертається в `PUBLISHED` без резервування.
-
-### Модуль `delivery`
-
-19.11.2026 перевірено повний HTTP-сценарій у `DeliveryFlowE2EIT`: створення пункту призначення, створення й публікація лота, резервування, отримання, доставка та підтвердження. У тесті використовуються JWT користувачів і PostgreSQL.
-
-| Користувач | Запит | Результат | Код |
-|---|---|---|---|
-| `coordinator1` | `POST /api/v1/destination-points` | Пункт створено | `201` |
-| `donor1` | `POST /api/v1/lots`, потім `POST /api/v1/lots/{id}/publication` | Лот створено й опубліковано | `201`, `200` |
-| `volunteer1` | `POST /api/v1/lots/{id}/reservation` | Лот зарезервовано | `201` |
-| `volunteer1` | `POST /api/v1/lots/{id}/pickup` | Статус `PICKED_UP` | `200` |
-| `volunteer1` | `POST /api/v1/lots/{id}/delivery` | Статус `DELIVERED` | `200` |
-| `volunteer1` | `POST /api/v1/lots/{id}/confirmation` | Статус `CONFIRMED` | `200` |
-| `volunteer1` | `POST /api/v1/destination-points` | Відмова за роллю | `403` |
-
-Для отримання передано `{"actualWeightKg":5}`, для доставки — ідентифікатор пункту призначення, для підтвердження — фактичний код і `receivedWeightKg = 5`. У тесті перевірено кінцевий статус `CONFIRMED`, збережену вагу й пункт призначення. Код підтвердження у звіті не наводиться.
+Запити 1-10 стосуються модуля `lot`, 11-15 модуля `volunteer`, 16-24 модуля `delivery`. Для запитів 11-24 використано лот із запиту 1: після резервування він проходить статуси `PICKED_UP`, `DELIVERED` і `CONFIRMED`. Код підтвердження для запиту 24 узято з відповіді запиту 21 і в звіті не наводиться.
 
 ## 3. Записи в таблиці
 
-Після запитів до `lot` від 07.11.2026 виконано:
+Після цих запитів виконано:
 
 ```sql
-select id, username, action, method_name, success, error_message, created_at
+select id, username, action, method_name, success, left(error_message, 40) as error_message, created_at
 from audit_log
 order by id;
 ```
 
-| id | username | action | method_name | success | error_message | created_at |
-|---:|---|---|---|---|---|---|
-| 1 | donor1 | CREATE_LOT | LotServiceImpl.create(..) | TRUE | null | 2026-11-07 17:39:17.146926+00 |
-| 2 | donor1 | PUBLISH_LOT | LotServiceImpl.publish(..) | TRUE | null | 2026-11-07 17:39:17.49946+00 |
-| 3 | donor1 | UPDATE_LOT | LotServiceImpl.update(..) | FALSE | LotNotDraftException: Лот cf74dda8-7fc7-44d7-8577-48b2b1545de9 не в чернетці | 2026-11-07 17:39:17.7786+00 |
-| 4 | volunteer1 | CREATE_LOT | LotServiceImpl.create(..) | FALSE | AuthorizationDeniedException: Access Denied | 2026-11-07 17:39:17.912647+00 |
-| 5 | donor1 | CANCEL_LOT | LotServiceImpl.cancel(..) | TRUE | null | 2026-11-07 17:39:18.180742+00 |
-| 6 | donor1 | CANCEL_LOT | LotServiceImpl.cancel(..) | FALSE | InvalidLotStateException: Лот cf74dda8-7fc7-44d7-8577-48b2b1545de9: перехід CANCELLED → CANCELLED заборонено | 2026-11-07 17:39:18.279361+00 |
-| 7 | donor1 | CREATE_LOT | LotServiceImpl.create(..) | TRUE | null | 2026-11-07 17:39:18.403822+00 |
-| 8 | admin1 | APPROVE_LOT | LotServiceImpl.approve(..) | TRUE | null | 2026-11-07 17:39:18.632441+00 |
+Нижче результат; текст помилки в таблиці наведено повністю (запит скорочує його до 40 символів для виводу в консоль).
 
-Стовпець `username` вказує користувача, `action` і `method_name` — дію та метод, `created_at` — час її виконання, а `success` і `error_message` — результат. Записи 3, 4 і 6 підтверджують аудит помилки бізнес-правила, відмови за роллю та недозволеного переходу; відповідні HTTP-відповіді залишилися `409` або `403`, а не `500`.
+| id | Запит | username | action | method_name | success | error_message | created_at |
+|---:|---:|---|---|---|---|---|---|
+| 1 | 1 | donor1 | CREATE_LOT | LotServiceImpl.create(..) | TRUE | null | 2026-11-19 12:17:20.122582+00 |
+| 2 | 2 | donor1 | PUBLISH_LOT | LotServiceImpl.publish(..) | TRUE | null | 2026-11-19 12:17:20.439123+00 |
+| 3 | 3 | donor1 | UPDATE_LOT | LotServiceImpl.update(..) | FALSE | LotNotDraftException: Лот bcea5031-4517-4df0-8ff9-04929cce26fc не в чернетці | 2026-11-19 12:17:20.704304+00 |
+| 4 | 4 | volunteer1 | CREATE_LOT | LotServiceImpl.create(..) | FALSE | AuthorizationDeniedException: Access Denied | 2026-11-19 12:17:20.857396+00 |
+| 5 | 6 | donor1 | CREATE_LOT | LotServiceImpl.create(..) | TRUE | null | 2026-11-19 12:17:21.204737+00 |
+| 6 | 7 | donor1 | CANCEL_LOT | LotServiceImpl.cancel(..) | TRUE | null | 2026-11-19 12:17:21.43557+00 |
+| 7 | 8 | donor1 | CANCEL_LOT | LotServiceImpl.cancel(..) | FALSE | InvalidLotStateException: Лот 20056e39-a02d-417c-b06a-667d7d504dce: перехід CANCELLED → CANCELLED заборонено | 2026-11-19 12:17:21.515304+00 |
+| 8 | 9 | donor1 | CREATE_LOT | LotServiceImpl.create(..) | TRUE | null | 2026-11-19 12:17:21.635497+00 |
+| 9 | 10 | admin1 | APPROVE_LOT | LotServiceImpl.approve(..) | TRUE | null | 2026-11-19 12:17:21.918664+00 |
+| 10 | 11 | volunteer1 | RESERVE_LOT | VolunteerServiceImpl.reserve(..) | TRUE | null | 2026-11-19 12:17:22.042178+00 |
+| 11 | 12 | volunteer1 | RESERVE_LOT | VolunteerServiceImpl.reserve(..) | FALSE | InvalidLotStateException: Лот bcea5031-4517-4df0-8ff9-04929cce26fc: перехід RESERVED → RESERVED заборонено | 2026-11-19 12:17:22.165797+00 |
+| 12 | 13 | donor1 | RESERVE_LOT | VolunteerServiceImpl.reserve(..) | FALSE | AuthorizationDeniedException: Access Denied | 2026-11-19 12:17:22.272807+00 |
+| 13 | 14 | volunteer1 | CANCEL_RESERVATION | VolunteerServiceImpl.cancelReservation(..) | TRUE | null | 2026-11-19 12:17:22.388503+00 |
+| 14 | 15 | volunteer1 | RESERVE_LOT | VolunteerServiceImpl.reserve(..) | TRUE | null | 2026-11-19 12:17:22.513019+00 |
+| 15 | 16 | coordinator1 | CREATE_DESTINATION_POINT | DeliveryServiceImpl.createDestinationPoint(..) | TRUE | null | 2026-11-19 12:17:22.686301+00 |
+| 16 | 17 | volunteer1 | CREATE_DESTINATION_POINT | DeliveryServiceImpl.createDestinationPoint(..) | FALSE | AuthorizationDeniedException: Access Denied | 2026-11-19 12:17:22.957556+00 |
+| 17 | 18 | volunteer1 | PICKUP_LOT | DeliveryServiceImpl.pickup(..) | TRUE | null | 2026-11-19 12:17:23.084419+00 |
+| 18 | 19 | volunteer1 | PICKUP_LOT | DeliveryServiceImpl.pickup(..) | FALSE | InvalidLotStateException: Лот bcea5031-4517-4df0-8ff9-04929cce26fc: перехід PICKED_UP → PICKED_UP заборонено | 2026-11-19 12:17:23.2007+00 |
+| 19 | 20 | donor1 | PICKUP_LOT | DeliveryServiceImpl.pickup(..) | FALSE | AuthorizationDeniedException: Access Denied | 2026-11-19 12:17:23.315782+00 |
+| 20 | 21 | volunteer1 | DELIVER_LOT | DeliveryServiceImpl.deliver(..) | TRUE | null | 2026-11-19 12:17:23.432246+00 |
+| 21 | 22 | volunteer1 | DELIVER_LOT | DeliveryServiceImpl.deliver(..) | FALSE | InvalidLotStateException: Лот bcea5031-4517-4df0-8ff9-04929cce26fc: перехід DELIVERED → DELIVERED заборонено | 2026-11-19 12:17:23.638875+00 |
+| 22 | 23 | volunteer1 | CONFIRM_DELIVERY | DeliveryServiceImpl.confirm(..) | FALSE | InvalidConfirmationCodeException: Неправильний код підтвердження | 2026-11-19 12:17:23.744285+00 |
+| 23 | 24 | volunteer1 | CONFIRM_DELIVERY | DeliveryServiceImpl.confirm(..) | TRUE | null | 2026-11-19 12:17:23.851201+00 |
 
-Запит № 5 (`400`, порожня назва) запису в таблиці не створив: `@Valid` спрацювала в контролері до виклику сервісного методу.
+Стовпець `username` вказує користувача, `action` і `method_name` дію та метод, `created_at` час її виконання, а `success` і `error_message` результат. Рядки 3, 4, 7, 11, 12, 16, 18, 19, 21 і 22 підтверджують, що помилки бізнес-правил, відмови за роллю, заборонені переходи стану та неправильний код теж фіксуються, а відповідь API при цьому лишається `409`, `403` або `422` (запити 3, 4, 8, 12, 13, 17, 19, 20, 22, 23), а не `500`.
 
-Приклад `arguments` і `result` для запису № 1 (значення скорочено):
+Запит 5 (`400`, порожня назва) рядка в таблиці не створив: `@Valid` спрацьовує в контролері до виклику сервісного методу.
+
+Приклад стовпців `arguments` і `result` для запису 1 (значення скорочено):
 
 ```text
 arguments: [LotRequest[donorOrgId=11111111-1111-1111-1111-111111111111, title=Свіжа випічка, category=BAKERY, ...
-result:    LotResponse[id=cf74dda8-7fc7-44d7-8577-48b2b1545de9, donorOrgId=11111111-1111-1111-1111-111111111111, ...
+result:    LotResponse[id=bcea5031-4517-4df0-8ff9-04929cce26fc, donorOrgId=11111111-1111-1111-1111-111111111111, ...
 ```
 
-Для запису № 3 у стовпці result збережено рядок "null", оскільки метод завершився винятком і не повернув результату. duration_ms для записів № 1 і № 3 — 55 і 5 мс відповідно.
+Для запису 3 у стовпці `result` збережено текст `null`, бо метод завершився винятком і нічого не повернув; `duration_ms` для записів 1 і 3 дорівнює 27 і 9 мс.
 
-### Записи `volunteer` і `delivery`
-
-У тестах від 19.11.2026 реальні записи `audit_log` читаються через `JdbcClient` і перевіряються за користувачем, дією, успішністю та повідомленням про виняток. Нижче наведено перевірені значення цих полів. На відміну від таблиці `lot` вище, тут не наведено згенеровані `id` й точні `created_at`: їхні конкретні значення не виводилися в консоль, а в тестах перевірялася наявність часу запису.
-
-| Сценарій | username | action | success | error_message |
-|---|---|---|---|---|
-| Резервування | volunteer1 | `RESERVE_LOT` | TRUE | null |
-| Скасування резервування | volunteer1 | `CANCEL_RESERVATION` | TRUE | null |
-| Повторне резервування | volunteer1 | `RESERVE_LOT` | FALSE | `InvalidLotStateException` |
-| UUID лота дорівнює `null` | volunteer1 | `RESERVE_LOT` | FALSE | `ConstraintViolationException` |
-| Резервування від `DONOR` | donor1 | `RESERVE_LOT` | FALSE | `AuthorizationDeniedException` |
-| Створення пункту | coordinator1 | `CREATE_DESTINATION_POINT` | TRUE | null |
-| Отримання лота | volunteer1 | `PICKUP_LOT` | TRUE | null |
-| Доставка | volunteer1 | `DELIVER_LOT` | TRUE | null |
-| Підтвердження | volunteer1 | `CONFIRM_DELIVERY` | TRUE | null |
-| Повторне отримання | volunteer1 | `PICKUP_LOT` | FALSE | `InvalidLotStateException` |
-| Повторна доставка | volunteer1 | `DELIVER_LOT` | FALSE | `InvalidLotStateException` |
-| Неправильний код | volunteer1 | `CONFIRM_DELIVERY` | FALSE | `InvalidConfirmationCodeException` |
-| Некоректний запит пункту | coordinator1 | `CREATE_DESTINATION_POINT` | FALSE | `ConstraintViolationException` |
-| Створення пункту від `DONOR` | donor1 | `CREATE_DESTINATION_POINT` | FALSE | `AuthorizationDeniedException` |
-| Отримання лота від `DONOR` | donor1 | `PICKUP_LOT` | FALSE | `AuthorizationDeniedException` |
-
-Для успішного `DELIVER_LOT` тест перевіряє наявність `lotStatus=DELIVERED` і `confirmationCode=[REDACTED]` у `result`; для `CONFIRM_DELIVERY` — `arguments = null`, `lotStatus=CONFIRMED` і прихований код у `result`. Помилка неправильного коду записується без розкриття самого коду. Після невдалих переходів стан бізнес-даних перевіряється окремими SQL-запитами.
+Код підтвердження в таблицю не потрапляє: для запису 23 (`CONFIRM_DELIVERY`) стовпець `arguments` має значення `null`, а в `result` записів 20 і 23 код замінено на `confirmationCode=[REDACTED]`. Запис 22 (неправильний код) містить лише назву винятку й повідомлення «Неправильний код підтвердження», самого коду там немає.
 
 ## 4. Тести
 
