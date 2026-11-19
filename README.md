@@ -391,3 +391,11 @@ sudo journalctl -u foodrescue -n 50 --no-pager
 ### 15.3. Модуль `delivery`
 
 Аудитуються `DeliveryService.createDestinationPoint` (`CREATE_DESTINATION_POINT`), `pickup` (`PICKUP_LOT`), `deliver` (`DELIVER_LOT`) і `confirm` (`CONFIRM_DELIVERY`). Для `confirm` задано `logParameters = false`, щоб код підтвердження не потрапляв у `arguments`; у `DeliveryResponse.toString()` цей код також приховується як `[REDACTED]`, тому він не записується в `result` для `deliver` і `confirm` (сама JSON-відповідь API не змінюється). Сервісна валідація `createDestinationPoint` та помилки бізнес-правил фіксуються як невдалі спроби; докази перевіряє `DeliveryAuditIntegrationTest` (10 тестів), журнал доступний у `audit_log`, а звіт — у [`report-audit.md`](report-audit.md).
+
+## 16. Actuator
+
+Через веб відкрито лише два службові ендпоінти (`management.endpoints.web.exposure.include=health,loggers`). `GET /actuator/health` доступний усім і без входу повертає лише `{"status":"UP"}` без компонентів; деталі здоров'я (`components`) бачить тільки користувач із роллю `ADMIN` (`when-authorized`, `roles=ADMIN`). `loggers` і будь-який інший службовий адрес вимагають `ADMIN`: без входу відповідь `401` із `WWW-Authenticate: Basic`, для `DONOR` `403`. Правила задає окремий ланцюг безпеки `actuatorFilterChain` (`@Order(0)`, `EndpointRequest`, `httpBasic`) перед ланцюгами `/api/**` і сторінок; обліковий запис адміністратора це наявний `admin1`, пароль береться з `foodrescue.demo.passwords.admin1` (у Docker із `deploy.env`).
+
+Рівень логування змінюється без перезапуску: `POST /actuator/loggers/<пакет>` із тілом `{"configuredLevel":"DEBUG"}` від імені `admin1` повертає `204`, після чого `GET /actuator/loggers/<пакет>` показує `effectiveLevel` `DEBUG` і в консолі з'являються `DEBUG`-повідомлення пакета (наприклад, `com.example.foodrescue.lot` пише рядок під час `GET /api/v1/lots`). Тіло `{"configuredLevel":null}` повертає рівень за замовчуванням; зміна діє до перезапуску застосунку.
+
+Тести безпеки Actuator (`ActuatorSecurityIntegrationTest`) і сценарій зміни рівня (`LotLogLevelIntegrationTest`) запускаються разом з іншими командою `./mvnw verify`, а конфігурація безпеки, перевірка блокування, сценарій зі знімками консолі та результати тестів зібрані у [`report-actuator.md`](report-actuator.md).
