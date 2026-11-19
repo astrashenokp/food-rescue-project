@@ -13,6 +13,8 @@ import com.example.foodrescue.lot.*;
 import com.example.foodrescue.lot.internal.exception.InvalidPickupWindowException;
 import com.example.foodrescue.lot.internal.exception.LotNotDraftException;
 import com.example.foodrescue.lot.internal.strategy.PickupWindowStrategy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ import java.util.UUID;
 @Service
 public class LotServiceImpl implements LotService {
 
+    private static final Logger log = LoggerFactory.getLogger(LotServiceImpl.class);
     private static final int MIN_DONOR_LOTS_FOR_MODERATION_CHECK = 5;
     private static final int CANCELLATION_THRESHOLD_PERCENT = 20;
 
@@ -62,6 +65,7 @@ public class LotServiceImpl implements LotService {
     @Override
     @Transactional(readOnly = true)
     public List<LotResponse> findAll(LotStatus status, FoodCategory category, UUID donorOrgId) {
+        log.debug("Завантаження списку лотів");
         List<FoodLot> lots = status == null
                 ? lotRepository.findAllWithItems()
                 : lotRepository.findAllByStatusWithItems(status);
