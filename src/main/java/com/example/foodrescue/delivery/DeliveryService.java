@@ -1,6 +1,8 @@
 package com.example.foodrescue.delivery;
 
 import com.example.foodrescue.common.LotResponse;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
@@ -9,7 +11,7 @@ import java.util.UUID;
 public interface DeliveryService {
 
     @PreAuthorize("hasRole('COORDINATOR')")
-    DestinationPointResponse createDestinationPoint(DestinationPointRequest request);
+    DestinationPointResponse createDestinationPoint(@NotNull @Valid DestinationPointRequest request);
 
     List<DestinationPointResponse> getDestinationPoints();
 

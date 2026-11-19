@@ -32,4 +32,21 @@ public record DeliveryResponse(
                 delivery.getConfirmedAt(),
                 delivery.getReceivedWeightKg());
     }
+
+
+    @Override
+    public String toString() {
+        return "DeliveryResponse[" +
+                "lotId=" + lotId +
+                ", volunteerId=" + volunteerId +
+                ", destinationPointId=" + destinationPointId +
+                ", lotStatus=" + lotStatus +
+                ", pickedUpAt=" + pickedUpAt +
+                ", pickupWeightKg=" + pickupWeightKg +
+                ", deliveredAt=" + deliveredAt +
+                ", confirmationCode=" + (confirmationCode == null ? "null" : "[REDACTED]") +
+                ", confirmedAt=" + confirmedAt +
+                ", receivedWeightKg=" + receivedWeightKg +
+                "]";
+    }
 }

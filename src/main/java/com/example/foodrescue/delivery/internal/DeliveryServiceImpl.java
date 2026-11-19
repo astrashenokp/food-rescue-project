@@ -1,5 +1,6 @@
 package com.example.foodrescue.delivery.internal;
 
+import com.example.foodrescue.common.AuditAction;
 import com.example.foodrescue.common.CurrentUser;
 import com.example.foodrescue.common.ForbiddenActionException;
 import com.example.foodrescue.common.FoodCategory;
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -32,6 +34,7 @@ import java.util.UUID;
 import java.security.SecureRandom;
 
 @Service
+@Validated
 public class DeliveryServiceImpl implements DeliveryService {
 
     private static final Logger log = LoggerFactory.getLogger(DeliveryServiceImpl.class);
@@ -72,6 +75,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     @Override
+    @AuditAction(action = "CREATE_DESTINATION_POINT")
     @Transactional
     public DestinationPointResponse createDestinationPoint(DestinationPointRequest request) {
         if (destinationPointRepository.existsByName(request.name())) {
@@ -173,6 +177,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     @Override
+    @AuditAction(action = "PICKUP_LOT")
     @Transactional
     public DeliveryResponse pickup(UUID lotId, PickupRequest request) {
         FoodLot lot = lotRepository.findById(lotId)
@@ -201,6 +206,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     @Override
+    @AuditAction(action = "DELIVER_LOT")
     @Transactional
     public DeliveryResponse deliver(UUID lotId, DeliveryRequest request) {
         Delivery delivery = deliveryRepository.findByLotIdWithLot(lotId)
@@ -228,6 +234,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     @Override
+    @AuditAction(action = "CONFIRM_DELIVERY", logParameters = false)
     @Transactional(noRollbackFor = {InvalidConfirmationCodeException.class, ConfirmationAttemptsExceededException.class})
     public DeliveryResponse confirm(UUID lotId, ConfirmationRequest request) {
         Delivery delivery = deliveryRepository.findByLotIdWithLot(lotId)
