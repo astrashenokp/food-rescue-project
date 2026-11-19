@@ -1,20 +1,20 @@
 # Звіт про аспектний аудит Food Rescue
 
-**Дата перевірки:** 07.11.2026
+**Дати перевірки:** 07.11.2026 (запити до API та записи `lot`), 19.11.2026 (інтеграційні й E2E-тести)  
 **Проєкт:** Food Rescue (Spring Boot 4.1.1, Java 25, Spring Modulith)
 
 ## 1. Що зроблено
 
-Бізнес-операції сервісного шару фіксуються аспектом. Метод, який треба записувати, позначається маркерною анотацією `@AuditAction(action = "...")`. Аспект `AuditAspect` (порада `@Around`, `@Order(1)`) перехоплює виклик, запам'ятовує користувача з контексту безпеки (`anonymous` без входу), назву методу, аргументи, час початку, виконує метод і записує результат або виняток у таблицю `audit_log`. Виняток не поглинається: після запису він прокидається далі без змін, тому відповідь API лишається тією самою, що й без аудиту (`409`, `403`, `ProblemDetail`).
+Бізнес-операції сервісного шару фіксуються аспектом. Метод, який потрібно записувати, позначається анотацією `@AuditAction(action = "...")`. Аспект `AuditAspect` (порада `@Around`, `@Order(1)`) перехоплює виклик, отримує користувача з контексту безпеки (`anonymous`, якщо автентифікації немає), назву методу, аргументи й час початку. Після виконання методу він записує результат або інформацію про виняток у таблицю `audit_log`, а також тривалість операції. Оригінальний виняток не поглинається й передається далі, тому обробка помилок API залишається незмінною (`409`, `403`, `ProblemDetail`).
 
-Усі класи аудиту лежать у пакеті `common` без підпакетів: `AuditAction`, `AuditAspect`, `AuditLogEntity`, `AuditLogRepository`, `AuditLogWriter`.
+Класи аудиту розміщені в пакеті `common`: `AuditAction`, `AuditAspect`, `AuditLogEntity`, `AuditLogRepository`, `AuditLogWriter`.
 
-- **Чому `@Around`.** Лише така порада бачить і аргументи, і результат, і виняток одного виклику та може виміряти його тривалість.
-- **Чому `@Order(1)`, а не `HIGHEST_PRECEDENCE`.** Аспект має стояти зовні `@PreAuthorize` і `@Transactional`, щоб відмова за роллю теж потрапляла в журнал. Порядок `HIGHEST_PRECEDENCE` збігається з порядком службового перехоплювача Spring, і прив'язка `@annotation(auditAction)` ламається (`Required to bind 2 arguments, but only bound 1`).
-- **Чому окремий бін `AuditLogWriter` із `REQUIRES_NEW`.** Запис аудиту виконується у власній транзакції, тому лишається, навіть коли бізнес-транзакція відкотилась. Виклик через `this` обійшов би проксі, тому запис винесено в окремий бін.
-- **Чому анотація, а не рядок `execution(...)`.** Анотація видна на самому методі й не ламається при перейменуванні пакета.
+- **`@Around`** дає змогу отримати аргументи, результат або виняток одного виклику й виміряти час виконання.
+- **`@Order(1)`** дозволяє аспекту перехоплювати також відмови `@PreAuthorize` та виконуватися перед транзакційним перехоплювачем.
+- **`AuditLogWriter` із `REQUIRES_NEW`** зберігає аудит в окремій транзакції: запис залишається навіть після відкату бізнес-транзакції. Окремий бін потрібний, щоб виклик проходив через Spring-проксі.
+- **`@AuditAction`** указує, які саме сервісні операції потрібно аудитувати, без дублювання коду журналювання в кожному методі.
 
-Таблиця `audit_log` має стовпці `id`, `username`, `action`, `method_name`, `arguments`, `result`, `success`, `error_message`, `duration_ms`, `created_at`.
+Таблиця `audit_log` містить стовпці `id`, `username`, `action`, `method_name`, `arguments`, `result`, `success`, `error_message`, `duration_ms`, `created_at`.
 
 ### Модуль `lot`
 
@@ -26,31 +26,82 @@
 | `CANCEL_LOT` | `LotService.cancel` | `DONOR` |
 | `APPROVE_LOT` | `LotService.approve` | `ADMIN` |
 
-`delete` і читання лотів не записуються. Аргументи записуються повністю, бо `LotRequest` і `ApprovalRequest` не містять паролів, кодів чи e-mail.
+`delete` і читання лотів не аудитуються. Аргументи `LotRequest` та `ApprovalRequest` не містять паролів чи кодів підтвердження.
+
+### Модуль `volunteer`
+
+| Дія в журналі | Метод | Роль |
+|---|---|---|
+| `RESERVE_LOT` | `VolunteerService.reserve` | `VOLUNTEER` |
+| `CANCEL_RESERVATION` | `VolunteerService.cancelReservation` | `VOLUNTEER` |
+
+Записується UUID лоту. Валідація `@NotNull` для `reserve` працює на рівні сервісу через `@Validated`, тому помилка `ConstraintViolationException` також фіксується аспектом.
+
+### Модуль `delivery`
+
+| Дія в журналі | Метод | Роль |
+|---|---|---|
+| `CREATE_DESTINATION_POINT` | `DeliveryService.createDestinationPoint` | `COORDINATOR` |
+| `PICKUP_LOT` | `DeliveryService.pickup` | `VOLUNTEER` |
+| `DELIVER_LOT` | `DeliveryService.deliver` | `VOLUNTEER` |
+| `CONFIRM_DELIVERY` | `DeliveryService.confirm` | `VOLUNTEER` |
+
+Для `confirm` використано `logParameters = false`, щоб не записувати код підтвердження з аргументів. У текстовому представленні `DeliveryResponse` код замінюється на `[REDACTED]`, тому він також не потрапляє до стовпця `result`. Для `createDestinationPoint` перевіряється сервісна валідація вхідних даних.
 
 ## 2. Запити
 
-Застосунок запущено командою `java -jar target/foodrescue-0.0.1-SNAPSHOT.jar` (порт 18080, H2 у файлі), запити надіслано командою `curl` під демо-акаунтами.
-
 ### Модуль `lot`
 
-| № | Запит | Очікування | Код |
+07.11.2026 застосунок запущено командою `java -jar target/foodrescue-0.0.1-SNAPSHOT.jar` (порт `18080`, файлова H2); запити надіслано через `curl` під демонстраційними користувачами.
+
+| № | Запит | Результат | Код |
 |---|---|---|---|
-| 1 | `donor1`: `POST /api/v1/lots` | лот створено | `201` |
-| 2 | `donor1`: `POST /api/v1/lots/{id}/publication` | лот опубліковано | `200` |
-| 3 | `donor1`: `PUT /api/v1/lots/{id}` (лот уже опубліковано) | помилка бізнес-правила | `409` |
-| 4 | `volunteer1`: `POST /api/v1/lots` | відмова за роллю | `403` |
-| 5 | `donor1`: `POST /api/v1/lots` з порожньою назвою | помилка валідації в контролері | `400` |
-| 6 | `donor1`: `POST /api/v1/lots/{id}/cancellation` | лот скасовано | `200` |
-| 7 | `donor1`: `POST /api/v1/lots/{id}/cancellation` (повторно) | заборонений перехід стану | `409` |
-| 8 | `admin1`: `POST /api/v1/lots/{id}/approval` | рішення модератора | `200` |
+| 1 | `donor1`: `POST /api/v1/lots` | Лот створено | `201` |
+| 2 | `donor1`: `POST /api/v1/lots/{id}/publication` | Лот опубліковано | `200` |
+| 3 | `donor1`: `PUT /api/v1/lots/{id}` (лот уже опубліковано) | Помилка бізнес-правила | `409` |
+| 4 | `volunteer1`: `POST /api/v1/lots` | Відмова за роллю | `403` |
+| 5 | `donor1`: `POST /api/v1/lots` з порожньою назвою | Помилка валідації в контролері | `400` |
+| 6 | `donor1`: `POST /api/v1/lots/{id}/cancellation` | Лот скасовано | `200` |
+| 7 | `donor1`: `POST /api/v1/lots/{id}/cancellation` (повторно) | Заборонений перехід стану | `409` |
+| 8 | `admin1`: `POST /api/v1/lots/{id}/approval` | Рішення модератора | `200` |
+
+### Модуль `volunteer`
+
+19.11.2026 запити перевірено в `ReservationApiE2EIT`: запуск HTTP API з JWT користувачів і перевірка стану лота в PostgreSQL.
+
+| Користувач | Запит | Результат | Код |
+|---|---|---|---|
+| `volunteer1` | `POST /api/v1/lots/{id}/reservation` | Опублікований лот зарезервовано | `201` |
+| `volunteer1` | Повторний `POST /api/v1/lots/{id}/reservation` | Повторне резервування відхилено | `409` |
+| `volunteer1` | `DELETE /api/v1/lots/{id}/reservation` | Резервування скасовано | `204` |
+| `donor1` | `POST /api/v1/lots/{id}/reservation` | Відмова за роллю | `403` |
+
+Після резервування лот має статус `RESERVED` і містить ідентифікатор волонтера; після скасування повертається в `PUBLISHED` без резервування.
+
+### Модуль `delivery`
+
+19.11.2026 перевірено повний HTTP-сценарій у `DeliveryFlowE2EIT`: створення пункту призначення, створення й публікація лота, резервування, отримання, доставка та підтвердження. У тесті використовуються JWT користувачів і PostgreSQL.
+
+| Користувач | Запит | Результат | Код |
+|---|---|---|---|
+| `coordinator1` | `POST /api/v1/destination-points` | Пункт створено | `201` |
+| `donor1` | `POST /api/v1/lots`, потім `POST /api/v1/lots/{id}/publication` | Лот створено й опубліковано | `201`, `200` |
+| `volunteer1` | `POST /api/v1/lots/{id}/reservation` | Лот зарезервовано | `201` |
+| `volunteer1` | `POST /api/v1/lots/{id}/pickup` | Статус `PICKED_UP` | `200` |
+| `volunteer1` | `POST /api/v1/lots/{id}/delivery` | Статус `DELIVERED` | `200` |
+| `volunteer1` | `POST /api/v1/lots/{id}/confirmation` | Статус `CONFIRMED` | `200` |
+| `volunteer1` | `POST /api/v1/destination-points` | Відмова за роллю | `403` |
+
+Для отримання передано `{"actualWeightKg":5}`, для доставки — ідентифікатор пункту призначення, для підтвердження — фактичний код і `receivedWeightKg = 5`. У тесті перевірено кінцевий статус `CONFIRMED`, збережену вагу й пункт призначення. Код підтвердження у звіті не наводиться.
 
 ## 3. Записи в таблиці
 
-Після цих запитів виконано:
+Після запитів до `lot` від 07.11.2026 виконано:
 
 ```sql
-select id, username, action, method_name, success, error_message, created_at from audit_log order by id;
+select id, username, action, method_name, success, error_message, created_at
+from audit_log
+order by id;
 ```
 
 | id | username | action | method_name | success | error_message | created_at |
@@ -64,41 +115,70 @@ select id, username, action, method_name, success, error_message, created_at fro
 | 7 | donor1 | CREATE_LOT | LotServiceImpl.create(..) | TRUE | null | 2026-11-07 17:39:18.403822+00 |
 | 8 | admin1 | APPROVE_LOT | LotServiceImpl.approve(..) | TRUE | null | 2026-11-07 17:39:18.632441+00 |
 
-Видно, хто (`username`), що (`action`, `method_name`), коли (`created_at`) і з яким результатом (`success`, `error_message`) виконував операцію. Записи 3, 4 і 6 доводять, що помилка бізнес-правила, відмова за роллю і заборонений перехід теж фіксуються, а відповідь API при цьому лишилась `409` і `403` (запити 3, 4 і 7), а не `500`.
+Стовпець `username` вказує користувача, `action` і `method_name` — дію та метод, `created_at` — час її виконання, а `success` і `error_message` — результат. Записи 3, 4 і 6 підтверджують аудит помилки бізнес-правила, відмови за роллю та недозволеного переходу; відповідні HTTP-відповіді залишилися `409` або `403`, а не `500`.
 
-Запит 5 (`400`, порожня назва) рядка в журналі не залишив: перевірка `@Valid` виконується в контролері раніше за виклик сервісу, і аспект на сервісі її не бачить.
+Запит № 5 (`400`, порожня назва) запису в таблиці не створив: `@Valid` спрацювала в контролері до виклику сервісного методу.
 
-Приклад стовпців `arguments` і `result` для запису 1 (рядки в таблиці довші, тут скорочені):
+Приклад `arguments` і `result` для запису № 1 (значення скорочено):
 
-```
+```text
 arguments: [LotRequest[donorOrgId=11111111-1111-1111-1111-111111111111, title=Свіжа випічка, category=BAKERY, ...
 result:    LotResponse[id=cf74dda8-7fc7-44d7-8577-48b2b1545de9, donorOrgId=11111111-1111-1111-1111-111111111111, ...
 ```
 
-Для запису 3 `result` дорівнює `null`, бо метод завершився винятком; `duration_ms` у записах 1 і 3 дорівнює 55 і 5 мс.
+Для запису № 3 у стовпці result збережено рядок "null", оскільки метод завершився винятком і не повернув результату. duration_ms для записів № 1 і № 3 — 55 і 5 мс відповідно.
+
+### Записи `volunteer` і `delivery`
+
+У тестах від 19.11.2026 реальні записи `audit_log` читаються через `JdbcClient` і перевіряються за користувачем, дією, успішністю та повідомленням про виняток. Нижче наведено перевірені значення цих полів. На відміну від таблиці `lot` вище, тут не наведено згенеровані `id` й точні `created_at`: їхні конкретні значення не виводилися в консоль, а в тестах перевірялася наявність часу запису.
+
+| Сценарій | username | action | success | error_message |
+|---|---|---|---|---|
+| Резервування | volunteer1 | `RESERVE_LOT` | TRUE | null |
+| Скасування резервування | volunteer1 | `CANCEL_RESERVATION` | TRUE | null |
+| Повторне резервування | volunteer1 | `RESERVE_LOT` | FALSE | `InvalidLotStateException` |
+| UUID лота дорівнює `null` | volunteer1 | `RESERVE_LOT` | FALSE | `ConstraintViolationException` |
+| Резервування від `DONOR` | donor1 | `RESERVE_LOT` | FALSE | `AuthorizationDeniedException` |
+| Створення пункту | coordinator1 | `CREATE_DESTINATION_POINT` | TRUE | null |
+| Отримання лота | volunteer1 | `PICKUP_LOT` | TRUE | null |
+| Доставка | volunteer1 | `DELIVER_LOT` | TRUE | null |
+| Підтвердження | volunteer1 | `CONFIRM_DELIVERY` | TRUE | null |
+| Повторне отримання | volunteer1 | `PICKUP_LOT` | FALSE | `InvalidLotStateException` |
+| Повторна доставка | volunteer1 | `DELIVER_LOT` | FALSE | `InvalidLotStateException` |
+| Неправильний код | volunteer1 | `CONFIRM_DELIVERY` | FALSE | `InvalidConfirmationCodeException` |
+| Некоректний запит пункту | coordinator1 | `CREATE_DESTINATION_POINT` | FALSE | `ConstraintViolationException` |
+| Створення пункту від `DONOR` | donor1 | `CREATE_DESTINATION_POINT` | FALSE | `AuthorizationDeniedException` |
+| Отримання лота від `DONOR` | donor1 | `PICKUP_LOT` | FALSE | `AuthorizationDeniedException` |
+
+Для успішного `DELIVER_LOT` тест перевіряє наявність `lotStatus=DELIVERED` і `confirmationCode=[REDACTED]` у `result`; для `CONFIRM_DELIVERY` — `arguments = null`, `lotStatus=CONFIRMED` і прихований код у `result`. Помилка неправильного коду записується без розкриття самого коду. Після невдалих переходів стан бізнес-даних перевіряється окремими SQL-запитами.
 
 ## 4. Тести
 
-Команда `./mvnw verify`: **BUILD SUCCESS**, 420 тестів у Surefire (було 408, додано 12 тестів аудиту) і 13 у Failsafe, 0 failures, 0 errors, **01:47 min**. `ModulesTest` зелений.
+19.11.2026 виконано:
 
-**`AuditIntegrationTest`** (`common`, 3 тести, показує, що аспект пише в таблицю):
+```powershell
+.\mvnw.cmd clean verify
+```
 
-- `create_ShouldWriteSuccessRecord`: рядок із `donor1`, `success = true`, назвою методу, аргументами, результатом і часом;
-- `businessRuleViolation_ShouldWriteFailedRecordAndRethrow`: помилка `LotNotDraftException` записана з `success = false`, той самий виняток вилітає з методу, назва лоту не змінилась;
-- `outerTransactionRollback_ShouldKeepAuditRecord`: зовнішня транзакція відкочується, лот не створено, запис аудиту лишився.
+**Результат: `BUILD SUCCESS`** — 435 тестів Surefire та 13 тестів Failsafe, разом **448 тестів**; **0 failures, 0 errors, 0 skipped**. Час виконання — **01:16 min**. Тести виконувалися на Java 25 з PostgreSQL 17 у Testcontainers. `ModulesTest` також пройшов.
 
-**`LotAuditIntegrationTest`** (`lot`, 9 тестів):
+**`AuditIntegrationTest`** (`common`, 3 тести):
 
-- успіх: `create`, `update`, `publish`, `cancel` від `donor1` і `approve` від `admin1` записані з правильними користувачем і дією;
-- помилки бізнес-правил: `update` опублікованого лоту (`LotNotDraftException`) і `cancel` зарезервованого (`InvalidLotStateException`); виняток прокинуто, стан лоту не змінився;
-- помилка правила сервісу: `create` із вікном самовивозу в минулому (`InvalidPickupWindowException`), лот не створено;
-- чужа роль: `create` від `volunteer1` (`AuthorizationDeniedException`), користувач `volunteer1` записаний, лот не створено.
+- `create_ShouldWriteSuccessRecord` — перевірка успішного запису з користувачем, методом, аргументами, результатом і часом;
+- `businessRuleViolation_ShouldWriteFailedRecordAndRethrow` — запис помилки `LotNotDraftException`, передача винятку далі й незмінність даних лота;
+- `outerTransactionRollback_ShouldKeepAuditRecord` — відкат бізнес-транзакції без втрати запису аудиту.
 
-У кожному тесті перевіряються три речі: виняток того самого типу, що й без аудиту, рядок у `audit_log` з потрібними `action`, `username`, `success` і `error_message`, а також незмінність таблиці лотів там, де операція не вдалась. Тести викликають сервіс і читають таблицю через `JdbcClient` на PostgreSQL у Testcontainers, без Mockito.
+**`LotAuditIntegrationTest`** (`lot`, 9 тестів): успішні `create`, `update`, `publish`, `cancel`, `approve`; помилки `LotNotDraftException`, `InvalidLotStateException`, `InvalidPickupWindowException`; відмова `AuthorizationDeniedException`. Перевіряються записи в `audit_log` і незмінність бізнес-даних у разі помилки.
+
+**`VolunteerAuditIntegrationTest`** (`volunteer`, 5 тестів): успішне резервування й скасування, повторне резервування, валідація `null` і відмова користувачу з роллю `DONOR`. Перевіряються `audit_log` та стан лота.
+
+**`DeliveryAuditIntegrationTest`** (`delivery`, 10 тестів): створення пункту призначення, отримання лота, доставка та підтвердження; повторні `pickup` і `deliver`; неправильний код підтвердження; сервісна валідація; дві відмови за роллю. Перевіряються записи аудиту, стани лота та доставки й приховування коду підтвердження.
+
+Загалом виконано **27 інтеграційних тестів підсистеми аудиту** (`3 + 9 + 5 + 10`). Вони викликають сервіси Spring і перевіряють вміст таблиці `audit_log` через `JdbcClient`; E2E-тести додатково виконують справжні HTTP-запити через запущений застосунок.
 
 ## 5. Обмеження
 
-- Помилки `@Valid` у контролері (HTTP `400`) аудит не бачить, бо перевірка спрацьовує раніше за виклик сервісу. Помилки, які кидає сам сервіс, наприклад неприпустиме вікно самовивозу, в аудит потрапляють.
-- Виклик аудитованого методу через `this` усередині того самого класу оминає проксі, тому аудит не спрацює; аудитовані методи викликаються іншими бінами.
-- Якщо сама база аудиту недоступна, аспект записує `log.error`, а бізнес-виняток не підміняє; окремого тесту на це немає.
-- Аудит записується лише для методів з `@AuditAction`; контролери, репозиторії та `delete` лотів не аудитуються.
+- Помилки `@Valid` у контролері (HTTP `400`) аудит не бачить, оскільки перевірка виконується до виклику сервісу. Помилки бізнес-правил і сервісної валідації, які виникають під час виклику аудитованого сервісного методу, зберігаються в журналі.
+- Самовиклик `this.method()` усередині одного класу обходить Spring AOP-проксі; аудитовані методи викликаються через Spring-біни.
+- Якщо запис до бази аудиту не вдається, `AuditAspect` пише `log.error` і не замінює оригінальний бізнес-виняток. Окремого тесту на недоступність бази немає.
+- Аудит виконується для методів, позначених `@AuditAction`; читання, репозиторії, контролери й видалення лотів не охоплені цим аспектом.

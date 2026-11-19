@@ -378,7 +378,7 @@ sudo journalctl -u foodrescue -n 50 --no-pager
 
 Аудит бізнес-операцій зроблено аспектом: метод сервісу, позначений `@AuditAction(action = "...")`, перехоплює `AuditAspect` (порада `@Around`, `@Order(1)`, тобто аспект стоїть зовні `@PreAuthorize` і `@Transactional`). Аспект записує в таблицю `audit_log` користувача з контексту безпеки (`anonymous` без входу), дію, метод, аргументи, результат, ознаку успіху, текст помилки, тривалість і час. Виняток із методу не поглинається, а прокидається далі без змін, а запис робить окремий бін `AuditLogWriter` в окремій транзакції (`REQUIRES_NEW`), тому він лишається, навіть коли бізнес-транзакція відкотилась. Методи з конфіденційними аргументами позначаються `logParameters = false`, тоді стовпець `arguments` порожній.
 
-Журнал дивиться запитом `select id, username, action, method_name, success, error_message, created_at from audit_log order by id;` у H2-консолі (див. розділ 8.2). Помилка `@Valid` у контролері (HTTP 400) спрацьовує раніше за виклик сервісу, тому аспект її не бачить; помилки, які кидає сам сервіс (наприклад, неприпустиме вікно самовивозу), потрапляють в аудит. Тести `AuditIntegrationTest` (`common`), `LotAuditIntegrationTest` (`lot`) і `VolunteerAuditIntegrationTest` (`volunteer`) запускаються разом з іншими командою `./mvnw verify`, а запити, записи таблиці й результати зібрано у [`report-audit.md`](report-audit.md).
+Журнал дивиться запитом `select id, username, action, method_name, success, error_message, created_at from audit_log order by id;` у H2-консолі (див. розділ 8.2). Помилка `@Valid` у контролері (HTTP 400) спрацьовує раніше за виклик сервісу, тому аспект її не бачить; помилки, які кидає сам сервіс (наприклад, неприпустиме вікно самовивозу), потрапляють в аудит. Інтеграційні тести `AuditIntegrationTest` (`common`), `LotAuditIntegrationTest` (`lot`), `VolunteerAuditIntegrationTest` (`volunteer`) та `DeliveryAuditIntegrationTest` (`delivery`) входять до запуску `./mvnw verify`; фактичний результат останнього запуску необхідно зафіксувати в [`report-audit.md`](report-audit.md).
 
 ### 15.1. Модуль `lot`
 
@@ -387,3 +387,7 @@ sudo journalctl -u foodrescue -n 50 --no-pager
 ### 15.2. Модуль `volunteer`
 
 Аудитуються `VolunteerService.reserve` і `cancelReservation` з діями `RESERVE_LOT` і `CANCEL_RESERVATION`. Єдиний аргумент цих методів — UUID лота, тому його безпечно записувати; e-mail, паролі та коди підтвердження в журнал не потрапляють. Повторне резервування, помилка сервісної валідації та відмова за роллю записуються як невдалі виклики без зміни початкового винятку.
+
+### 15.3. Модуль `delivery`
+
+Аудитуються `DeliveryService.createDestinationPoint` (`CREATE_DESTINATION_POINT`), `pickup` (`PICKUP_LOT`), `deliver` (`DELIVER_LOT`) і `confirm` (`CONFIRM_DELIVERY`). Для `confirm` задано `logParameters = false`, щоб код підтвердження не потрапляв у `arguments`; у `DeliveryResponse.toString()` цей код також приховується як `[REDACTED]`, тому він не записується в `result` для `deliver` і `confirm` (сама JSON-відповідь API не змінюється). Сервісна валідація `createDestinationPoint` та помилки бізнес-правил фіксуються як невдалі спроби; докази перевіряє `DeliveryAuditIntegrationTest` (10 тестів), журнал доступний у `audit_log`, а звіт — у [`report-audit.md`](report-audit.md).
