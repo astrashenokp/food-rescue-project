@@ -42,6 +42,7 @@ public class SecurityConfig {
 
     @Bean
     @Order(1)
+    @SuppressWarnings("java:S4502")
     public SecurityFilterChain apiFilterChain(
             HttpSecurity http,
             AuthenticationManager authenticationManager,

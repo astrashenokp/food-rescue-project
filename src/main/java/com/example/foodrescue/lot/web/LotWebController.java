@@ -25,6 +25,7 @@ import java.util.List;
 @Controller
 @RequestMapping("/lots")
 public class LotWebController {
+    private static final String CREATE_FORM_VIEW = "lot/create-form";
 
     private final LotService lotService;
 
@@ -43,7 +44,7 @@ public class LotWebController {
     public String showCreateForm(Model model) {
         model.addAttribute("form", new CreateLotForm("", null, "", null, null, null, null, "", null, null));
         addOptions(model);
-        return "lot/create-form";
+        return CREATE_FORM_VIEW;
     }
 
     @PostMapping
@@ -55,14 +56,14 @@ public class LotWebController {
             RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
             addOptions(model);
-            return "lot/create-form";
+            return CREATE_FORM_VIEW;
         }
         try {
             lotService.create(toRequest(form));
         } catch (BusinessException ex) {
             bindingResult.reject("business", ex.getMessage());
             addOptions(model);
-            return "lot/create-form";
+            return CREATE_FORM_VIEW;
         }
         redirectAttributes.addFlashAttribute("successMessage", "Лот успішно створено.");
         return "redirect:/lots";
