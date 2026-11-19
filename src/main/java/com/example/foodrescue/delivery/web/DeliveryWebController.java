@@ -25,6 +25,10 @@ import java.util.UUID;
 @Controller
 @RequestMapping("/deliveries")
 public class DeliveryWebController {
+    private static final String DETAILS_VIEW = "delivery/details";
+    private static final String BUSINESS_ERROR = "business";
+    private static final String SUCCESS_MESSAGE = "successMessage";
+    private static final String REDIRECT_DELIVERIES = "redirect:/deliveries/";
 
     private final DeliveryService deliveryService;
 
@@ -44,7 +48,7 @@ public class DeliveryWebController {
     @PreAuthorize("hasAnyRole('VOLUNTEER', 'COORDINATOR')")
     public String details(@PathVariable UUID lotId, Model model) {
         addDetails(model, lotId);
-        return "delivery/details";
+        return DETAILS_VIEW;
     }
 
     @PostMapping("/{lotId}/pickup")
@@ -59,15 +63,15 @@ public class DeliveryWebController {
             } catch (ForbiddenActionException ex) {
                 throw ex;
             } catch (BusinessException ex) {
-                errors.reject("business", ex.getMessage());
+                errors.reject(BUSINESS_ERROR, ex.getMessage());
             }
         }
         if (errors.hasErrors()) {
             addDetails(model, lotId);
-            return "delivery/details";
+            return DETAILS_VIEW;
         }
-        redirectAttributes.addFlashAttribute("successMessage", "Отримання лоту зафіксовано.");
-        return "redirect:/deliveries/" + lotId;
+        redirectAttributes.addFlashAttribute(SUCCESS_MESSAGE, "Отримання лоту зафіксовано.");
+        return REDIRECT_DELIVERIES + lotId;
     }
 
     @PostMapping("/{lotId}/deliver")
@@ -82,15 +86,15 @@ public class DeliveryWebController {
             } catch (ForbiddenActionException ex) {
                 throw ex;
             } catch (BusinessException ex) {
-                errors.reject("business", ex.getMessage());
+                errors.reject(BUSINESS_ERROR, ex.getMessage());
             }
         }
         if (errors.hasErrors()) {
             addDetails(model, lotId);
-            return "delivery/details";
+            return DETAILS_VIEW;
         }
-        redirectAttributes.addFlashAttribute("successMessage", "Передачу в пункт призначення зафіксовано.");
-        return "redirect:/deliveries/" + lotId;
+        redirectAttributes.addFlashAttribute(SUCCESS_MESSAGE, "Передачу в пункт призначення зафіксовано.");
+        return REDIRECT_DELIVERIES + lotId;
     }
 
     @PostMapping("/{lotId}/confirm")
@@ -106,15 +110,15 @@ public class DeliveryWebController {
             } catch (ForbiddenActionException ex) {
                 throw ex;
             } catch (BusinessException ex) {
-                errors.reject("business", ex.getMessage());
+                errors.reject(BUSINESS_ERROR, ex.getMessage());
             }
         }
         if (errors.hasErrors()) {
             addDetails(model, lotId);
-            return "delivery/details";
+            return DETAILS_VIEW;
         }
-        redirectAttributes.addFlashAttribute("successMessage", "Результат підтвердження збережено.");
-        return "redirect:/deliveries/" + lotId;
+        redirectAttributes.addFlashAttribute(SUCCESS_MESSAGE, "Результат підтвердження збережено.");
+        return REDIRECT_DELIVERIES + lotId;
     }
 
     private void addDetails(Model model, UUID lotId) {

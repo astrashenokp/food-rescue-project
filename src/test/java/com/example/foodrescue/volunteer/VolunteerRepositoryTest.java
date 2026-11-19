@@ -1,7 +1,6 @@
 package com.example.foodrescue.volunteer;
 
 import com.example.foodrescue.delivery.DestinationPoint;
-import com.example.foodrescue.delivery.DestinationPointRepository;
 import com.example.foodrescue.volunteer.internal.VolunteerProfile;
 import com.example.foodrescue.volunteer.internal.VolunteerRepository;
 import jakarta.persistence.EntityManagerFactory;
@@ -27,9 +26,6 @@ class VolunteerRepositoryTest {
 
     @Autowired
     private VolunteerRepository volunteerRepository;
-
-    @Autowired
-    private DestinationPointRepository destinationPointRepository;
 
     @Autowired
     private TestEntityManager em;

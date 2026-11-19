@@ -22,6 +22,10 @@ import java.util.Set;
 @RequestMapping("/destination-points")
 @PreAuthorize("hasRole('COORDINATOR')")
 public class DestinationPointWebController {
+    private static final String EDITING = "editing";
+    private static final String FORM_VIEW = "delivery/create-form";
+    private static final String SUCCESS_MESSAGE = "successMessage";
+    private static final String REDIRECT_LIST = "redirect:/destination-points";
 
     private final DeliveryService deliveryService;
 
@@ -39,8 +43,8 @@ public class DestinationPointWebController {
     public String showCreateForm(Model model) {
         model.addAttribute("form", new CreateDestinationPointForm(null, "", "", "", Set.of()));
         addOptions(model);
-        model.addAttribute("editing", false);
-        return "delivery/create-form";
+        model.addAttribute(EDITING, false);
+        return FORM_VIEW;
     }
 
     @PostMapping
@@ -51,8 +55,8 @@ public class DestinationPointWebController {
             RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
             addOptions(model);
-            model.addAttribute("editing", false);
-            return "delivery/create-form";
+            model.addAttribute(EDITING, false);
+            return FORM_VIEW;
         }
 
         try {
@@ -65,12 +69,12 @@ public class DestinationPointWebController {
         } catch (BusinessException ex) {
             bindingResult.reject("business", ex.getMessage());
             addOptions(model);
-            model.addAttribute("editing", false);
-            return "delivery/create-form";
+            model.addAttribute(EDITING, false);
+            return FORM_VIEW;
         }
 
-        redirectAttributes.addFlashAttribute("successMessage", "Пункт призначення успішно створено.");
-        return "redirect:/destination-points";
+        redirectAttributes.addFlashAttribute(SUCCESS_MESSAGE, "Пункт призначення успішно створено.");
+        return REDIRECT_LIST;
     }
 
     @GetMapping("/{id}/edit")
@@ -80,9 +84,9 @@ public class DestinationPointWebController {
                 point.organizationId(), point.name(), point.address(),
                 point.workingHours(), point.acceptedCategories()));
         addOptions(model);
-        model.addAttribute("editing", true);
+        model.addAttribute(EDITING, true);
         model.addAttribute("pointId", id);
-        return "delivery/create-form";
+        return FORM_VIEW;
     }
 
     @PostMapping("/{id}")
@@ -103,23 +107,23 @@ public class DestinationPointWebController {
         }
         if (bindingResult.hasErrors()) {
             addOptions(model);
-            model.addAttribute("editing", true);
+            model.addAttribute(EDITING, true);
             model.addAttribute("pointId", id);
-            return "delivery/create-form";
+            return FORM_VIEW;
         }
-        redirectAttributes.addFlashAttribute("successMessage", "Пункт призначення оновлено.");
-        return "redirect:/destination-points";
+        redirectAttributes.addFlashAttribute(SUCCESS_MESSAGE, "Пункт призначення оновлено.");
+        return REDIRECT_LIST;
     }
 
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable java.util.UUID id, RedirectAttributes redirectAttributes) {
         try {
             deliveryService.deleteDestinationPoint(id);
-            redirectAttributes.addFlashAttribute("successMessage", "Пункт призначення видалено.");
+            redirectAttributes.addFlashAttribute(SUCCESS_MESSAGE, "Пункт призначення видалено.");
         } catch (BusinessException ex) {
             redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
         }
-        return "redirect:/destination-points";
+        return REDIRECT_LIST;
     }
 
     private void addOptions(Model model) {
