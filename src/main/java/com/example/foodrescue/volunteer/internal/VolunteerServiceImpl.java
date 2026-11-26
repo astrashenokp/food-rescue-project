@@ -91,6 +91,7 @@ public class VolunteerServiceImpl implements VolunteerService {
 
     @Override
     public VolunteerResponse getById(UUID id) {
+        log.debug("Завантаження волонтера {}", id);
         VolunteerProfile profile = volunteerRepository.findByIdWithPoints(id)
                 .orElseThrow(() -> new VolunteerNotFoundException(id));
         return VolunteerResponse.from(profile);
