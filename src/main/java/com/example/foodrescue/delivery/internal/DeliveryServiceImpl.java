@@ -104,6 +104,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     @Override
     @Transactional(readOnly = true)
     public DestinationPointResponse getDestinationPoint(UUID id) {
+        log.debug("Завантаження пункту призначення");
         DestinationPoint point = destinationPointRepository.findByIdWithCategories(id)
                 .orElseThrow(() -> new DestinationPointNotFoundException(id));
         return DestinationPointResponse.from(point);
