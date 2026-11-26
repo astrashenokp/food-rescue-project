@@ -305,19 +305,22 @@ $ curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/lots   -> 
 
 У `DeliveryServiceImpl.getDestinationPoint(UUID id)` додано `log.debug("Завантаження пункту призначення")`. Повідомлення не містить персональних даних, бізнес-логіку методу не змінено. Рівень пакета `com.example.foodrescue.delivery` змінюється через `/actuator/loggers/com.example.foodrescue.delivery`. Сценарій INFO → DEBUG → INFO перевірено автоматизовано без перезапуску контексту (див. розділ 5).
 
+### 4.3. Діагностичне логування модуля volunteer
+
+У `VolunteerServiceImpl.getById(UUID id)` додано `log.debug("Завантаження волонтера {}", id)`. У повідомлення потрапляє лише UUID профілю, без e-mail і телефону, бізнес-логіку методу не змінено. Рівень пакета `com.example.foodrescue.volunteer` змінюється через `/actuator/loggers/com.example.foodrescue.volunteer`, а діагностичний рядок з'являється під час `GET /api/v1/volunteers/{id}`. Сценарій INFO → DEBUG → INFO перевірено автоматизовано без перезапуску контексту (див. розділ 5).
+
 ## 5. Тести
 
-Остання повна перевірка на 26.11.2026: `.\mvnw.cmd clean verify` — **BUILD SUCCESS**, 452 тести Surefire і 13 тестів Failsafe, разом **465 тестів**, 0 failures, 0 errors, 0 skipped, **01:33 min**. Тести виконувалися з Java 25.0.4.1 на PostgreSQL 17 у Testcontainers; `ModulesTest` також пройшов.
+Остання повна перевірка на 27.11.2026 (код після злиття всіх трьох модулів): `./mvnw clean verify` — **BUILD SUCCESS**, 454 тести Surefire і 13 тестів Failsafe, разом **467 тестів**, 0 failures, 0 errors, 0 skipped, **03:19 min**. Тести виконувалися з Java 25.0.4.1 на PostgreSQL 17 у Testcontainers; `ModulesTest` також пройшов.
 
 ```text
-[INFO] Tests run: 452, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 454, Failures: 0, Errors: 0, Skipped: 0
 [INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
-[INFO] Total time:  01:33 min
-[INFO] Finished at: 2026-11-26T15:18:01+02:00
+[INFO] Total time:  03:19 min
 ```
 
-Рядки підсумків Surefire та Failsafe наведено разом. Попередня перевірка від 19.11.2026: 463 тести, BUILD SUCCESS (до додавання двох тестів delivery).
+Рядки підсумків Surefire та Failsafe наведено разом. Попередня перевірка від 26.11.2026: 465 тестів, BUILD SUCCESS (до додавання двох тестів volunteer).
 
 **`ActuatorSecurityIntegrationTest`** (`common`, 13 тестів):
 
@@ -365,6 +368,13 @@ $ curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/lots   -> 
 [INFO] Finished at: 2026-11-26T15:16:16+02:00
 ```
 
+**`VolunteerLogLevelIntegrationTest`** (`volunteer`, 2 тести). Запити до Actuator виконує спільний `ActuatorTestSupport`, виклик API це `GET /api/v1/volunteers/{id}` для демонстраційного волонтера, повідомлення консолі перевіряються через `OutputCaptureExtension`.
+
+- `setLevel_WhenDebug_ShouldShowDebugMessageWithoutRestart`: початковий рівень `INFO`, виклик API не друкує рядка `DEBUG`; після `POST` з `DEBUG` ефективний рівень стає `DEBUG`, а повторний виклик друкує «Завантаження волонтера» з UUID профілю;
+- `setLevel_WhenResetToNull_ShouldHideDebugMessage`: після `DEBUG` рядок з'являється, після скидання `{"configuredLevel":null}` рівень повертається до `INFO`, а новий виклик API рядка вже не друкує.
+
+Після кожного тесту рівень скидається через `@AfterEach`, тому інші тести не бачать `DEBUG`.
+
 ## 6. Обмеження
 
 - Невиставлені ендпоінти (`env`, `beans` тощо) не віддаються: анонімний запит отримує перенаправлення `302` на `/login`, бо потрапляє до ланцюга сторінок, а запит з Basic-входом `admin1` теж `302`, бо ланцюг сторінок Basic не читає. Автентифікований у ланцюгу сторінок запит отримує `404`.
@@ -374,4 +384,4 @@ $ curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/lots   -> 
 
 ## 7. Висновок
 
-Ручні запити від 26.11.2026 підтвердили правильне розмежування доступу до `health` і `loggers` та збереження захисту бізнес-API. Ручний сценарій lot і автоматизовані сценарії lot та delivery підтвердили динамічну зміну рівня логування без перезапуску. У перевіреній версії проєкту пройшли всі 465 тестів.
+Ручні запити від 26.11.2026 підтвердили правильне розмежування доступу до `health` і `loggers` та збереження захисту бізнес-API. Ручний сценарій lot і автоматизовані сценарії lot, volunteer та delivery підтвердили динамічну зміну рівня логування без перезапуску. У перевіреній версії проєкту пройшли всі 467 тестів.
