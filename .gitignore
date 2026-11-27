@@ -41,3 +41,6 @@ build/
 
 ### Deployment secrets ###
 deploy.env
+
+### Shared database for the two-instance demo ###
+data/
