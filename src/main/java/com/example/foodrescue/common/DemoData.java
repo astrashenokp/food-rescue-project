@@ -28,6 +28,9 @@ public class DemoData implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        if (lotRepository.existsById(LOT_DRAFT)) {
+            return;
+        }
         Instant now = Instant.now();
 
         lotRepository.save(draftLot(now));
