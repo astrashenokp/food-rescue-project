@@ -13,7 +13,7 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@SpringBootTest(properties = "foodrescue.alerts.timeout=500ms")
+@SpringBootTest(properties = {"foodrescue.alerts.timeout=500ms", "foodrescue.scheduling.enabled=false"})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import({TestcontainersConfiguration.class, AlertsStubConfiguration.class})

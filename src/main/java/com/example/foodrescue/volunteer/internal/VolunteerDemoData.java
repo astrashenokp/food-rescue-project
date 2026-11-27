@@ -18,6 +18,9 @@ public class VolunteerDemoData implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        if (volunteerRepository.existsById(DemoData.DEMO_VOLUNTEER)) {
+            return;
+        }
         VolunteerProfile demo = new VolunteerProfile(DemoData.DEMO_VOLUNTEER);
         demo.setFullName("Демо Волонтер");
         demo.setEmail("demo@volunteer.ua");

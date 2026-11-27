@@ -31,4 +31,6 @@ public interface LotService {
 
     @PreAuthorize("hasRole('ADMIN')")
     LotResponse approve(UUID id, ApprovalRequest request);
+
+    int expireOverdue();
 }

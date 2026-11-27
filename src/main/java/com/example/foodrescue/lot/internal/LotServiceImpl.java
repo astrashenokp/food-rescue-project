@@ -148,6 +148,15 @@ public class LotServiceImpl implements LotService {
         return LotResponse.from(lotRepository.save(lot));
     }
 
+    @Override
+    @Transactional
+    public int expireOverdue() {
+        List<FoodLot> overdue = lotRepository.findByStatusAndPickupToBefore(LotStatus.PUBLISHED, Instant.now(clock));
+        overdue.forEach(lot -> statusChanger.transition(lot, LotStatus.EXPIRED, "Вікно самовивозу минуло"));
+        lotRepository.saveAll(overdue);
+        return overdue.size();
+    }
+
     private FoodLot findWithItems(UUID id) {
         return lotRepository.findByIdWithItems(id).orElseThrow(() -> new LotNotFoundException(id));
     }
