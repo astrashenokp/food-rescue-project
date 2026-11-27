@@ -4,12 +4,19 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface LotRepository extends JpaRepository<FoodLot, UUID> {
+
+    long countByStatus(LotStatus status);
+
+    List<FoodLot> findByStatusAndPickupToBefore(LotStatus status, Instant time);
+
+    List<FoodLot> findByStatusAndReservedUntilBefore(LotStatus status, Instant time);
 
     long countByDonorOrgId(UUID donorOrgId);
 
