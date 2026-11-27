@@ -13,7 +13,7 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = "foodrescue.alerts.timeout=500ms")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {"foodrescue.alerts.timeout=500ms", "foodrescue.scheduling.enabled=false"})
 @AutoConfigureRestTestClient
 @ActiveProfiles("test")
 @Import({TestcontainersConfiguration.class, AlertsStubConfiguration.class})
