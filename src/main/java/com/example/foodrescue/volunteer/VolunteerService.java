@@ -26,6 +26,8 @@ public interface VolunteerService {
     @PreAuthorize("hasRole('VOLUNTEER')")
     void cancelReservation(UUID lotId);
 
+    int releaseOverdueReservations();
+
     @PreAuthorize("hasRole('VOLUNTEER')")
     List<LotResponse> getAvailableLots();
 

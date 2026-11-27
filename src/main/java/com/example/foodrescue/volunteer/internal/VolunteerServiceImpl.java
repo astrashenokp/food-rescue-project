@@ -189,6 +189,22 @@ public class VolunteerServiceImpl implements VolunteerService {
     }
 
     @Override
+    @Transactional
+    public int releaseOverdueReservations() {
+        List<FoodLot> overdue = lotRepository.findByStatusAndReservedUntilBefore(
+                LotStatus.RESERVED, Instant.now(clock));
+        overdue.forEach(lot -> {
+            UUID volunteerId = lot.getReservedByVolunteerId();
+            statusChanger.transition(lot, LotStatus.PUBLISHED, "Термін резервування минув");
+            lot.setReservedByVolunteerId(null);
+            lot.setReservedUntil(null);
+            volunteerRepository.incrementNoShows(volunteerId);
+        });
+        lotRepository.saveAll(overdue);
+        return overdue.size();
+    }
+
+    @Override
     public List<LotResponse> getAvailableLots() {
         return lotRepository.findAllByStatusWithItems(LotStatus.PUBLISHED).stream()
                 .map(LotResponse::from)
