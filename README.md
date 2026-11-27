@@ -415,3 +415,7 @@ sudo journalctl -u foodrescue -n 50 --no-pager
 ### 17.1. Модуль `lot`
 
 `LotStatusReporter` (звичайна задача) кожні 30 секунд пише в журнал кількість лотів `PUBLISHED` і `RESERVED`; вона лише читає, тому виконується в кожному екземплярі. `ExpireOverdueLotsJob` (блокована задача, замок `expireOverdueLots`) викликає `LotService.expireOverdue()`, який переводить лоти `PUBLISHED` із минулим `pickupTo` у `EXPIRED` через `LotStatusChanger`, тож історія переходів записується; повторний запуск нічого не змінює, бо такі лоти вже не `PUBLISHED`. Тест `ExpireOverdueLotsJobIntegrationTest` перевіряє, що задача протермінує лише потрібні лоти, що повторний виклик нічого не міняє і що при замку іншого вузла задача пропускається, а після `unlock` виконується.
+
+### 17.2. Модуль `volunteer`
+
+`VolunteerCountReporter` кожні 30 секунд пише кількість профілів волонтерів у кожному екземплярі; перший запуск відбувається через 10 секунд. `ReleaseOverdueReservationsJob` із тим самим розкладом і замком `releaseOverdueReservations` (`lockAtLeastFor=25s`, `lockAtMostFor=5m`) викликає `VolunteerService.releaseOverdueReservations()`: в одній транзакції лоти `RESERVED` із минулим `reservedUntil` повертаються в `PUBLISHED` через `LotStatusChanger`, резерв очищується, а кожен знятий резерв додає один `noShows` відповідному волонтеру. Тест `ReleaseOverdueReservationsJobIntegrationTest` перевіряє вибір лише прострочених резервів, історію переходів і лічильники, ідемпотентність та пропуск під чужим замком; запуск: `./mvnw -Dtest=ReleaseOverdueReservationsJobIntegrationTest test`.

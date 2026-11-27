@@ -22,14 +22,23 @@
 
 Блокована задача реалізує правило БК-4, яке попередні етапи залишили планувальнику: лот, що не забрали до кінця вікна самовивозу, не повинен лишатися опублікованим. Метод сервісу не змінює лот, який уже не `PUBLISHED`, тому задача ідемпотентна: після `lockAtMostFor` замок звільняється навіть при незавершеній задачі, і другий екземпляр може увійти в ту саму роботу, не зашкодивши даним. Час береться з `appClock`.
 
-### Модулі `volunteer` і `delivery`
+### Модуль `volunteer`
 
-За тим самим шаблоном (`initialDelay` 10 с, `fixedDelay` 30 с, `lockAtLeastFor` 25 с, `lockAtMostFor` 5 хв) модулі `volunteer` і `delivery` додають по одній звичайній і одній блокованій задачі; їхній опис і знімки додають автори цих модулів у цей розділ:
+Додано дві задачі з `initialDelay` 10 с і `fixedDelay` 30 с:
 
 | Клас | Тип | Що робить |
 |---|---|---|
 | `VolunteerCountReporter` | звичайна | пише кількість профілів волонтерів |
 | `ReleaseOverdueReservationsJob` | блокована (`releaseOverdueReservations`) | лоти `RESERVED` із минулим `reservedUntil` повертаються в `PUBLISHED`, волонтеру додається зрив (`incrementNoShows`) |
+
+`VolunteerService.releaseOverdueReservations()` повертає кількість знятих резервів. В одній транзакції він змінює статус через `LotStatusChanger` із записом історії, очищує `reservedByVolunteerId` і `reservedUntil` та збільшує `noShows` відповідного волонтера за кожен резерв. Час береться з `appClock`; резерви з майбутнім або відсутнім строком та лоти інших статусів не обробляються. Після першого запуску лот уже не `RESERVED`, тому повторне виконання не додає зрив чи запис історії. Замок має `lockAtLeastFor=25s` і `lockAtMostFor=5m`; задача пише лише кількість оброблених резервів, анотацій користувацького аудиту та перевірки ролі на цьому методі немає.
+
+### Модуль `delivery` (заплановано)
+
+Задачі модуля `delivery` додає його автор за тим самим розкладом; вони не входять до поточної реалізації треку `volunteer`:
+
+| Клас | Тип | Що робить |
+|---|---|---|
 | `DeliveryCountReporter` | звичайна | пише кількість доставок |
 | `FailStaleDeliveriesJob` | блокована (`failStaleDeliveries`) | лоти `PICKED_UP`, де `pickedUpAt` старший за `foodrescue.scheduling.transit-timeout` (за замовчуванням 6 годин), переходять у `FAILED` |
 
@@ -127,7 +136,9 @@ java -jar target/foodrescue-0.0.1-SNAPSHOT.jar --server.port=8082 "--spring.data
 
 ## 6. Тести
 
-Команда `./mvnw clean verify` (27.11.2026): **BUILD SUCCESS**, 457 тестів Surefire і 13 тестів Failsafe, разом **470 тестів**, 0 failures, 0 errors, 0 skipped, **03:06 min**. Тести виконувалися на PostgreSQL 17 у Testcontainers, `ModulesTest` також пройшов.
+Попередня перевірка `./mvnw clean verify` (27.11.2026): **BUILD SUCCESS**, 457 тестів Surefire і 13 тестів Failsafe, разом **470 тестів**, 0 failures, 0 errors, 0 skipped, **03:06 min**. Тести виконувалися на PostgreSQL 17 у Testcontainers, `ModulesTest` також пройшов.
+
+Після додавання треку `volunteer` повторно виконано `./mvnw verify` (27.11.2026): **BUILD SUCCESS**, 460 тестів Surefire та 13 тестів Failsafe, разом **473 тести**, 0 failures, 0 errors, 0 skipped, **42.473 с**. `ModulesTest` пройшов; інтеграційні тести використовували PostgreSQL у Testcontainers.
 
 **`ExpireOverdueLotsJobIntegrationTest`** (`lot`, 3 тести; викликають задачу напряму через замок, перед кожним тестом `SchedulingTestSupport` скидає замки командою `update shedlock set lock_until = …`):
 
@@ -136,6 +147,12 @@ java -jar target/foodrescue-0.0.1-SNAPSHOT.jar --server.port=8082 "--spring.data
 - `run_WhenAnotherNodeHoldsTheLock_ShouldSkipUntilItIsReleased`: коли замок `expireOverdueLots` утримує інший вузол, задача пропускається й лот лишається `PUBLISHED`; після `unlock` задача виконується й лот стає `EXPIRED`.
 
 Тест замка перевірено на чутливість: якщо тимчасово прибрати `@SchedulerLock`, він падає (`expected: "PUBLISHED" but was: "EXPIRED"`). Замки скидаються командою `update`, а не видаленням рядків.
+
+**`ReleaseOverdueReservationsJobIntegrationTest`** (`volunteer`, 3 тести; окремий запуск `./mvnw -Dtest=ReleaseOverdueReservationsJobIntegrationTest test` також завершився `BUILD SUCCESS`):
+
+- `run_ShouldReleaseOnlyOverdueReservationsAndIncrementNoShows`: два прострочені резерви одного волонтера очищуються, лоти повертаються в `PUBLISHED`, для кожного записано один перехід у історії, `noShows` зростає на два. Майбутній резерв, резерв без строку та лот `PICKED_UP` не змінюються.
+- `run_CalledTwice_ShouldNotIncrementNoShowsOrHistoryAgain`: після першого виконання замок скидається через `SchedulingTestSupport`, тож другий виклик справді входить у задачу. Статус, версія лота, лічильник зривів та історія залишаються незмінними.
+- `run_WhenAnotherNodeHoldsTheLock_ShouldSkipUntilItIsReleased`: під час утримання замка через `LockProvider` лот, `noShows` та історія не змінюються; після звільнення замка задача обробляє резерв. Тест виконується без користувача, як і справжній планувальник.
 
 ## 7. Обмеження
 
